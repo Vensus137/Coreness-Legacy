@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coreness Flow</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      overflow: hidden;
+      height: 100%;
+    }
+    body {
+      background: #1e1e1e;
+      color: #e0e0e0;
+      font-family: 'Inter', 'SF Pro', 'Segoe UI', Arial, sans-serif;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 40px 24px;
+      text-align: center;
+      -webkit-app-region: drag;
+    }
+    .orb {
+      width: 80px;
+      height: 80px;
+      position: relative;
+      margin-bottom: 36px;
+      flex-shrink: 0;
+    }
+    .orb-bg {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(37, 99, 235, 0.8), rgba(59, 130, 246, 0.8));
+    }
+    .orb-arc {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      border-top-color: rgba(255, 255, 255, 0.4);
+      animation: spin 5s linear infinite;
+    }
+    .orb-arc-inner {
+      position: absolute;
+      inset: 6px;
+      border-radius: 50%;
+      border: 3px solid transparent;
+      border-top-color: rgba(255, 255, 255, 0.3);
+      animation: spin 3.5s linear infinite reverse;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .title {
+      font-size: 32px;
+      font-weight: 400;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #6b7280;
+      font-size: 14px;
+      margin-bottom: 28px;
+    }
+    .progress-wrap {
+      width: 400px;
+      max-width: 90%;
+      height: 6px;
+      background: rgba(61, 61, 61, 0.3);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      border-radius: 3px;
+      transition: width 0.3s ease-out;
+    }
+    .status {
+      color: #6b7280;
+      font-size: 12px;
+      margin-bottom: 16px;
+      min-height: 20px;
+    }
+    .version {
+      color: #3d3d3d;
+      font-size: 12px;
+      margin-top: auto;
+      margin-bottom: 0;
+    }
+    .splash-center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div class="splash-center">
+    <div class="orb">
+      <div class="orb-bg"></div>
+      <div class="orb-arc"></div>
+      <div class="orb-arc orb-arc-inner"></div>
+    </div>
+    <h1 class="title">Coreness Flow</h1>
+    <p class="subtitle">AI-Powered Automation Platform</p>
+    <div class="progress-wrap">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <p class="status" id="status">Инициализация...</p>
+  </div>
+  <p class="version" id="version">1.0.0</p>
+  <script>
+    (function() {
+      var progressBar = document.getElementById('progressBar');
+      var statusEl = document.getElementById('status');
+      if (typeof window.splashAPI !== 'undefined' && window.splashAPI.onProgress) {
+        window.splashAPI.onProgress(function(value, text) {
+          if (progressBar) progressBar.style.width = value + '%';
+          if (statusEl && text) statusEl.textContent = text;
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

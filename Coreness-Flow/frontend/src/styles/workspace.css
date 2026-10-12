@@ -1,0 +1,127 @@
+/* Общий шаблон воркспейса: frame без скролла; скролл скраю на .workspace-content-scroll; опционально footer снизу. */
+
+.workspace-content-frame {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  width: 100%;
+}
+
+/* Краевая тень сверху — поверх контента (в т.ч. блоков кода с бейджем), симметрична .chat-input-wrapper::before снизу. */
+.workspace-content-frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--workspace-top-shadow-height, var(--workspace-edge-fade-height));
+  background: linear-gradient(to bottom, var(--color-bg), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Краевая тень снизу — только когда нет footer (в чате нижняя тень у .chat-input-wrapper::before). */
+.workspace-content-frame:not(.workspace-content-frame--has-footer)::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--workspace-edge-fade-height);
+  background: linear-gradient(to top, var(--color-bg), transparent);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Зона скролла: полная ширина воркспейса — полоса прокрутки скраю. scrollbar-gutter: stable убирает смещение при появлении скролла. */
+.workspace-content-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.workspace-content-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.workspace-content-scroll::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 6px;
+  margin-bottom: 6px;
+}
+
+.workspace-content-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.workspace-content-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+/* Рабочая область: max-width из layout (по умолчанию 800px), контент растёт по высоте. Верхний отступ внутри скролла — контент уходит под тень при прокрутке. */
+.workspace-content-inner {
+  flex: 0 0 auto;
+  min-height: min-content;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--workspace-content-max-width);
+  margin: 0 auto;
+  padding: var(--workspace-top-padding, 32px) var(--space-lg) var(--space-lg);
+  box-sizing: border-box;
+}
+
+/* Опциональный footer (например панель ввода чата) — в потоке снизу, скроллится только контент выше. */
+.workspace-content-footer {
+  flex-shrink: 0;
+}
+
+/* Общий липкий заголовок для настроек и истории чатов; высота и отступ — из переменных (вровень с сайдбаром). */
+/* top = offset, чтобы при скролле заголовок не уезжал в самый верх, а оставался на одной линии с сайдбаром. */
+/* ::before закрывает полосу над заголовком, чтобы контент не был виден при прокрутке. */
+/* Горизонтальный padding = body + content-inline, чтобы заголовок шёл вровень с текстом в теле. */
+.workspace-sticky-header {
+  position: sticky;
+  top: var(--header-row-offset-top);
+  z-index: 3;
+  flex-shrink: 0;
+  min-height: var(--header-row-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 calc(var(--workspace-sticky-body-padding) + var(--workspace-sticky-content-inline));
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg);
+}
+
+.workspace-sticky-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: var(--header-row-offset-top);
+  background: var(--color-bg);
+  pointer-events: none;
+}
+
+/* Градиент под заголовком: контент уходит в тень при прокрутке; top + 1px — не перекрывать border-bottom. */
+.workspace-sticky-header::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 1px);
+  height: var(--workspace-edge-fade-height);
+  background: linear-gradient(to bottom, var(--color-bg), transparent);
+  pointer-events: none;
+}

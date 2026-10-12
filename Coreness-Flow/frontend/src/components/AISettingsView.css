@@ -1,0 +1,503 @@
+/** Настройки AI: профили агрегаторов. Двухколоночный layout: список профилей + редактор. */
+
+.ai-settings-view {
+  display: flex;
+  flex-direction: column;
+  min-height: min-content;
+  width: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* --- Заголовок --- */
+
+.ai-settings-view__header {
+  /* Базовые стили из .workspace-sticky-header */
+}
+
+.ai-settings-view__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.ai-settings-view__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.ai-settings-view__status {
+  font-size: 0.8125rem;
+  color: var(--color-text-disabled);
+}
+
+.ai-settings-view__status--err {
+  color: var(--color-text-secondary);
+}
+
+.ai-settings-view__close {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  cursor: default;
+  font-size: 0.875rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ai-settings-view__close:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-focus, var(--color-border));
+}
+
+/* --- Body --- */
+
+.ai-settings-view__body {
+  flex: 1;
+  padding: var(--workspace-sticky-body-padding);
+}
+
+.ai-settings-view__loading,
+.ai-settings-view__error {
+  padding: var(--space-lg);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.ai-settings-view__error {
+  color: var(--color-error, #c00);
+}
+
+/* --- Двухколоночный layout --- */
+
+.ai-settings-view__layout {
+  display: flex;
+  gap: var(--space-xl);
+  align-items: flex-start;
+  padding-left: var(--workspace-sticky-content-inline);
+  padding-right: var(--workspace-sticky-content-inline);
+}
+
+.ai-settings-view__sidebar {
+  flex-shrink: 0;
+  width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.ai-settings-view__editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-settings-view__empty-editor {
+  padding: var(--space-xl);
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+/* --- Список профилей --- */
+
+.ai-profile-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ai-profile-list__empty {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+  padding: var(--space-sm) 0;
+}
+
+.ai-profile-card {
+  width: 100%;
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  cursor: default;
+  transition: background 0.12s, border-color 0.12s;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ai-profile-card:hover {
+  background: var(--color-bg-hover);
+}
+
+.ai-profile-card--selected {
+  border-color: var(--color-border-focus, var(--color-border));
+  background: var(--color-bg-hover);
+}
+
+.ai-profile-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.ai-profile-card__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-profile-card__active-badge {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--color-success, #4a9a5a);
+  color: #fff;
+  font-weight: 500;
+}
+
+.ai-profile-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ai-profile-card__agg {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.ai-profile-card__model {
+  font-size: 0.6875rem;
+  color: var(--color-text-disabled);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-settings-view__add-btn {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  cursor: default;
+  text-align: center;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.ai-settings-view__add-btn:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-focus, var(--color-border));
+  color: var(--color-text);
+}
+
+/* --- Редактор профиля --- */
+
+.ai-profile-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  max-width: 480px;
+}
+
+.ai-profile-editor__fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.ai-profile-editor__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.ai-profile-editor__label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.ai-profile-editor__input,
+.ai-profile-editor__select {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.ai-profile-editor__input:focus,
+.ai-profile-editor__select:focus {
+  outline: none;
+  border-color: var(--color-border-focus, var(--color-border));
+}
+
+.ai-profile-editor__hint {
+  font-size: 0.75rem;
+  color: var(--color-text-disabled);
+}
+
+.ai-profile-editor__secret-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.ai-profile-editor__secret-wrap .ai-profile-editor__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-profile-editor__secret-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  cursor: default;
+  transition: background 0.12s;
+}
+
+.ai-profile-editor__secret-toggle:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.ai-profile-editor__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.ai-profile-editor__btn {
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: default;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.ai-profile-editor__btn:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+}
+
+.ai-profile-editor__btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.ai-profile-editor__btn--primary {
+  font-weight: 500;
+}
+
+.ai-profile-editor__btn--delete {
+  margin-left: auto;
+  color: var(--color-text-secondary);
+}
+
+.ai-profile-editor__btn--delete:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.ai-profile-editor__save-msg {
+  font-size: 0.8125rem;
+  color: var(--color-text-disabled);
+}
+
+/* --- Валидация токена --- */
+
+.ai-token-validator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}
+
+.ai-token-validator__btn {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: 0.8125rem;
+  cursor: default;
+  transition: background 0.12s;
+}
+
+.ai-token-validator__btn:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.ai-token-validator__btn:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.ai-token-validator__status {
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.ai-token-validator__status--ok {
+  color: var(--color-text-secondary);
+}
+
+.ai-token-validator__status--error {
+  color: var(--color-text-secondary);
+}
+
+/* --- ModelCombobox --- */
+
+.ai-model-combobox {
+  position: relative;
+}
+
+.ai-model-combobox__input-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.ai-model-combobox__input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.ai-model-combobox__input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, var(--color-border));
+}
+
+.ai-model-combobox__refresh {
+  flex-shrink: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+  line-height: 1;
+  cursor: default;
+  transition: background 0.12s, color 0.12s;
+}
+
+.ai-model-combobox__refresh:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}
+
+.ai-model-combobox__refresh:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.ai-model-combobox__refresh--loading {
+  animation: ai-spin 0.8s linear infinite;
+  opacity: 0.6;
+}
+
+@keyframes ai-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.ai-model-combobox__dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  max-height: 240px;
+  overflow-y: auto;
+  /* Кастомный скроллбар под стиль проекта */
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.ai-model-combobox__dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.ai-model-combobox__dropdown::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.ai-model-combobox__dropdown::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.ai-model-combobox__dropdown::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+.ai-model-combobox__status {
+  padding: var(--space-sm) var(--space-md);
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+}
+
+.ai-model-combobox__status--error {
+  color: var(--color-text-secondary);
+}
+
+.ai-model-combobox__option {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: default;
+  transition: background 0.1s, border-color 0.1s;
+  box-sizing: border-box;
+}
+
+.ai-model-combobox__option:hover {
+  background: var(--color-bg-hover);
+  border-left-color: var(--color-border);
+}
+
+.ai-model-combobox__option--selected,
+.ai-model-combobox__option--selected:hover {
+  font-weight: 500;
+  border-left-color: var(--color-border-focus, var(--color-border));
+}

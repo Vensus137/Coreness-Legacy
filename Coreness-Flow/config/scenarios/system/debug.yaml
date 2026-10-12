@@ -1,0 +1,27 @@
+system_debug:
+  step:
+    - action: "send_chat_message"
+      params:
+        text: |
+          **Дебаг**
+
+          #### Системные переменные:
+          
+          - Scenario chain: `{scenario_chain|fallback:None}`
+          - Last result: `{last_result|fallback:None}`
+          - Last error message: `{last_error.message|fallback:None}`
+          - Last error code: `{last_error.code|fallback:None}`
+
+          #### Кэш:
+
+          - Загрузка кэш: `{_cache.loading}`
+          - Системный кэш: `{_cache.system}`
+          - Тулзы кэш: `{_cache.tools}`
+          - Агент кэш: `{_cache.ai_agent}`
+          - Роутинг кэш: `{_cache.routing}`
+          - Роутинг шаг кэш: `{_cache.routing_step}`
+          - Выполнение кэш: `{_cache.execution}`
+          - Ответ кэш: `{_cache.response}`
+      transition:
+        - action_result: "any"
+          transition_action: "abort"

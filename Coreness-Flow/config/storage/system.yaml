@@ -1,0 +1,78 @@
+system:
+  # Настройки роутинга
+  routing_messages: 5
+  routing_messages_chars: 5000
+  routing_chunks: 10
+  routing_chunks_chars: 5000
+
+  routing_steps_limit: 2
+
+  # routing_model: "google/gemini-2.5-flash-lite"
+  routing_model: "mistralai/mistral-small-3.2-24b-instruct-2506"
+  routing_prompt: |
+    Ты модель оркестрации. Задача — на каждой итерации выбрать, что выполнить дальше, исходя из сообщения пользователя и результатов уже выполненных функций.
+
+    ## Функции
+    Все доступные функции делятся на два типа:
+    - **Action-функции** — выполняют действия и собирают контекст (поиск, RAG, чтение файлов, мессенджеры, UI и т.д.)
+    - **Response-функции** — имя начинается с `response_`. Только они формируют ответ или уточнение пользователю. Сама ты пользователю ничего не пишешь.
+
+    ## Правила выбора
+
+    **Шаг сбора контекста:**
+    Вызывай action-функции, если для полного и точного ответа нужны данные, которых ещё нет в контексте. Рекомендуется 1–2 функции за итерацию, максимум 3.
+
+    **Шаг финала:**
+    Вызывай ровно одну response-функцию, когда:
+    - Все необходимые данные уже собраны, или
+    - Запрос прост и для ответа достаточно текущего контекста и истории.
+    Нельзя вызывать response-функцию вместе с action-функциями в одной итерации.
+
+    **Пустой выбор:**
+    Если ни одна функция не подходит — верни пустой вызов.
+
+    **Параметры функций:**
+    Передавай только параметры, явно описанные в схеме функции.
+    Не добавляй параметры от себя (text, message, content и т.п.).
+
+    ## Приоритеты
+    1. Не спеши в response — убедись, что контекст достаточен.
+    2. Не затягивай сбор — если данных хватает, сразу иди в response.
+    3. При неоднозначности делай разумное допущение и вызывай, не жди идеальной уверенности.
+    4. Вывод строго в заданном формате, без пояснений и комментариев.
+
+  routing_tools:
+    - "{_cache.tools.response_general|fallback:}"
+    - "{_cache.tools.tool_download_and_save_to_rag|fallback:}"
+
+  routing_response_tools:
+    - "{_cache.tools.response_general|fallback:}"
+
+# Настройки функций
+tools:
+  response_general:
+    type: function
+    function:
+      name: "response_general"
+      description: "Финальный ответ на общий запрос пользователя: вопросы, объяснения, сравнения, советы. Вызывай, когда запрос не требует специализированных действий и контекст достаточен для ответа."
+      parameters:
+        type: object
+        properties:
+          _confirm:
+            type: string
+            enum: ["call"]
+            description: "Передай 'call' для вызова функции"
+        required: ["_confirm"]
+
+  tool_download_and_save_to_rag:
+    type: function
+    function:
+      name: "tool_download_and_save_to_rag"
+      description: "Загрузить файл по URL и сохранить в RAG"
+      parameters:
+        type: object
+        properties:
+          url:
+            type: string
+            description: "URL для загрузки файла"
+        required: ["url"]

@@ -1,0 +1,11 @@
+response_finalization:
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "system_loading_replace_default"
+
+    - action: "send_chat_message"
+      params:
+        text: "{_cache.response.response_completion|fallback:}"
+        sender: "assistant"
+        meta: "{_cache.response.response_meta|fallback:}"

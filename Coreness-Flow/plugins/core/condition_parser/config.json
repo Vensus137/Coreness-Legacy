@@ -1,0 +1,261 @@
+{
+  "metadata": {
+    "name": "condition_parser",
+    "description": "Универсальный парсер условий с компиляцией в функции и search tree для быстрого поиска"
+  },
+  "actions": {
+    "parse_condition": {
+      "description": "Парсинг условия в compiled function + search tree",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "condition": {
+              "type": "string",
+              "optional": false,
+              "min_length": 1,
+              "description": "Строка условия для парсинга (например: $event_type == 'message' and $user_id > 100)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки (VALIDATION_ERROR, SYNTAX_ERROR, INTERNAL_ERROR)"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "search_path": {
+              "type": "object",
+              "description": "Путь для поиска в search tree (только == условия для плоских полей)"
+            },
+            "compiled_function": {
+              "type": "object",
+              "description": "Скомпилированная функция для проверки условия"
+            },
+            "condition_hash": {
+              "type": "integer",
+              "description": "Хэш условия для сравнения дубликатов"
+            }
+          }
+        }
+      }
+    },
+    "check_match": {
+      "description": "Проверка соответствия данных условию",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "condition": {
+              "type": "string|object",
+              "optional": false,
+              "description": "Условие: строка для парсинга или объект (результат parse_condition)"
+            },
+            "data": {
+              "type": "object",
+              "optional": false,
+              "description": "Данные для проверки соответствия условию"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "matched": {
+              "type": "boolean",
+              "description": "True если данные соответствуют условию, False если нет"
+            }
+          }
+        }
+      }
+    },
+    "build_condition": {
+      "description": "Построение условия из массива конфигов с простыми полями и custom условиями",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "configs": {
+              "type": "array",
+              "optional": false,
+              "description": "Массив конфигураций триггеров (каждый элемент - объект с полями и опциональным 'condition')",
+              "items": {
+                "type": "object"
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "condition_string": {
+              "type": "string",
+              "description": "Построенная строка условия (пустая строка если configs пустой)"
+            }
+          }
+        }
+      }
+    },
+    "add_to_tree": {
+      "description": "Добавление элемента в search tree с условиями в листьях",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "search_tree": {
+              "type": "object",
+              "optional": false,
+              "description": "Search tree для добавления элемента"
+            },
+            "parsed_condition": {
+              "type": "object",
+              "optional": false,
+              "description": "Распарсенное условие (результат parse_condition)"
+            },
+            "item_name": {
+              "type": "string",
+              "optional": false,
+              "description": "Название поля для сохранения значения в листе (например: 'scenario_id')"
+            },
+            "item_value": {
+              "type": "any",
+              "optional": false,
+              "description": "Значение для сохранения в листе"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "added": {
+              "type": "boolean",
+              "description": "True если элемент добавлен, False если это дубликат"
+            }
+          }
+        }
+      }
+    },
+    "search_in_tree": {
+      "description": "Быстрый поиск значений в search tree по данным события — O(m) где m - глубина дерева",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "search_tree": {
+              "type": "object",
+              "optional": false,
+              "description": "Search tree для поиска"
+            },
+            "data": {
+              "type": "object",
+              "optional": false,
+              "description": "Данные события для поиска в дереве"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "found_values": {
+              "type": "array",
+              "description": "Массив найденных значений из листьев дерева"
+            }
+          }
+        }
+      }
+    }
+  },
+  "contributes": {}
+}

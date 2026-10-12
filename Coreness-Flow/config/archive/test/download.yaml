@@ -1,0 +1,98 @@
+# ============================================
+# Скачивание файла по ссылке и сохранение в RAG (vector_store)
+# ============================================
+
+test_download_file:
+  description: "Скачать файл по ссылке, извлечь текст и сохранить в RAG (тест)"
+
+  trigger:
+    - event_type: "message"
+      event_source: "app"
+      event_text: "/test_download"
+
+  step:
+    - action: "download_and_extract"
+      params:
+        # url: "https://drive.google.com/file/d/1mXgnXctlFMa8VdfzwgVzwuheDDSEea1K/view?usp=sharing" # md
+        # url: "https://docs.google.com/spreadsheets/d/1Zdy-0TiTq7i1-kC9w_tZ_ZclIrGDgjeNm1zjD2Fnvss/edit?usp=sharing" # sheet
+        # url: "https://docs.google.com/document/d/1Ro5Q0xYahnW23N90yP8IOvrx6eYaTXfVuA7bBRRmoEY/edit?usp=sharing" # docx
+        # url: "https://drive.google.com/file/d/1AHRWkW61Jh-AxyIA_5KL4XTtt2oDzioV/view?usp=sharing" # pdf
+        # url: "https://docs.google.com/document/d/1z5JqCrNn9xDmBF-cP466-_GujfzuNeY6/edit?usp=sharing&ouid=115964207950843574040&rtpof=true&sd=true" # docx
+        url: "https://github.com/Vensus137/Coreness/blob/main/README_EN.md" # MD github
+        keep_file: true
+        _namespace: "doc"
+      transition:
+        - action_result: "success"
+          transition_action: "continue"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "test_download_error"
+
+    # - action: "add_chunks"
+    #   params:
+    #     text: "{_cache.doc.file_text}"
+    #     document_id: "test_download_rag_readme"
+    #     replace_document: true
+    #     metadata:
+    #       source_url: "{_cache.doc.file_metadata.source_url}"
+    #       file_type: "{_cache.doc.file_metadata.file_type}"
+    #   transition:
+    #     - action_result: "success"
+    #       transition_action: "jump_to_scenario"
+    #       transition_value: "test_download_ok"
+    #     - action_result: "error"
+    #       transition_action: "jump_to_scenario"
+    #       transition_value: "test_download_error"
+
+    - action: "send_chat_message"
+      params:
+        text: "{_cache.doc.file_text|truncate:3500}"
+        sender: "assistant"
+
+# Отдельный сценарий: сохранить уже имеющийся в _cache текст в RAG
+test_save_embedding:
+  description: "Сохранить текст из _cache в RAG (add_chunks)"
+
+  step:
+    - action: "delete_chunks"
+      params:
+        document_ids:
+          - "test_download_rag_readme"
+      transition:
+        - action_result: "success"
+          transition_action: "continue"
+        - action_result: "error"
+          transition_action: "continue"
+
+    - action: "add_chunks"
+      params:
+        text: "{_cache.doc.file_text}"
+        document_id: "test_download_rag_readme"
+        metadata:
+          source_url: "{_cache.doc.file_metadata.source_url}"
+          file_type: "{_cache.doc.file_metadata.file_type}"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "test_download_ok"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "test_download_error"
+
+# ═══════════════════════════════════════════════════════════
+# Итоговые сценарии
+# ═══════════════════════════════════════════════════════════
+
+test_download_ok:
+  description: "Успешное сохранение в RAG"
+  step:
+    - action: "send_chat_message"
+      params:
+        text: "✅ Файл скачан, текст извлечён и сохранён в RAG (document_id: test_download_rag_readme)."
+
+test_download_error:
+  description: "Ошибка при скачивании или сохранении в RAG"
+  step:
+    - action: "send_chat_message"
+      params:
+        text: "❌ Ошибка при скачивании или сохранении в RAG: {last_error.code|fallback:Ошибка} — {last_error.message|fallback:Проверь логи.}"

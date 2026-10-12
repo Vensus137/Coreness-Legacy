@@ -1,0 +1,304 @@
+{
+  "metadata": {
+    "name": "chats",
+    "description": "Чаты: список, создание, история, сообщения, переименование, удаление; запись в storage и emit в UI (send_chat_message, clear_chat)."
+  },
+  "settings": {},
+  "actions": {
+    "chat_list": {
+      "description": "Список чатов: id, title, created_at, отсортировано по дате создания (новые сверху)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {},
+          "optional": true
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "chats": {
+              "type": "array",
+              "description": "Массив { id, title, created_at, pinned }"
+            }
+          }
+        }
+      }
+    },
+    "chat_create": {
+      "description": "Создать чат. Опционально title; id выдаёт бэкенд (от 10)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string", "optional": true, "description": "Название чата" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "integer", "description": "ID чата" },
+            "title": { "type": "string", "description": "Название чата" },
+            "created_at": { "type": "string", "description": "ISO 8601" }
+          }
+        }
+      }
+    },
+    "chat_get_messages": {
+      "description": "Все сообщения чата (от старых к новым). Для одного нового — chat_get_message.",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "messages": {
+              "type": "array",
+              "description": "Массив { text, sender, timestamp, message_index }, от старых к новым"
+            }
+          }
+        }
+      }
+    },
+    "chat_get_message": {
+      "description": "Одно сообщение чата по message_index (по событию — запрос конкретного сообщения).",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" },
+            "message_index": { "type": "integer", "optional": false, "description": "Индекс сообщения в чате" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "object", "description": "{ text, sender, timestamp, message_index }" }
+          }
+        }
+      }
+    },
+    "chat_mark_message_drawn": {
+      "description": "Пометить сообщение как отрисованное (is_new=False). Вызывать перед анимацией.",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" },
+            "message_index": { "type": "integer", "optional": false, "description": "Индекс сообщения в чате" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    },
+    "chat_claim_message": {
+      "description": "Пометить сообщение как не новое и вернуть данные (один запрос для отображения по событию).",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" },
+            "message_index": { "type": "integer", "optional": false, "description": "Индекс сообщения в чате" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "message": { "type": "object", "description": "{ text, sender, timestamp, message_index, is_new }" }
+          }
+        }
+      }
+    },
+    "chat_set_title": {
+      "description": "Переименовать чат",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" },
+            "title": { "type": "string", "optional": false, "description": "Название чата" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    },
+    "chat_delete": {
+      "description": "Удалить чат безвозвратно. Только пользовательские (id >= 10)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    },
+    "chat_set_pinned": {
+      "description": "Закрепить или открепить чат. Только пользовательские (id >= 10).",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" },
+            "pinned": { "type": "boolean", "optional": true, "description": "true — закрепить, false — открепить" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    },
+    "chat_submit_message": {
+      "description": "Отправка сообщения пользователя: сохранить в чат (storage), затем передать событие в сценарии. Вызывается с фронта при отправке сообщения. В payload события к сценарию добавляется app_message_index.",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "event_type": { "type": "string", "description": "Тип события (message для UI чата)" },
+            "event_text": { "type": "string", "description": "Текст сообщения пользователя" },
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" },
+            "event_timestamp": { "type": "number", "optional": true, "description": "Метка времени события (Unix timestamp)" },
+            "event_source": { "type": "string", "optional": true, "description": "Источник события" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    },
+    "send_chat_message": {
+      "description": "Записать или заменить сообщение в чате и отобразить в UI. Если передан message_index и сообщение есть — заменяется (chat:message_changed), иначе добавляется новое (chat:new_message). Всегда возвращает message_index.",
+      "details": "#### Замена по индексу\n\nПри указании **message_index**: если сообщение с таким индексом есть — обновляется (текст, sender, meta, effect), UI получает chat:message_changed; если сообщение удалено или отсутствует — добавляется новое. При добавлении нового текст обязателен.\n\n#### Эффекты (effect)\n\nПередаётся объект. Поддерживаемые типы:\n\n- **loading** — индикатор загрузки (шиммер, текст «Идёт обработка…»).\n  - Поля: `type` (строка, обязательно `\"loading\"`), `duration_sec` (число, опционально) — длительность анимации в секундах; на фронте по умолчанию 30. Бэкенд по истечении времени ничего не делает, таймер только для анимации.\n  - Пример: `{ \"type\": \"loading\", \"duration_sec\": 60 }`\n\nПри **замене** (message_index указан): если effect не передан — предыдущий эффект снимается; если передан объект — применяется.\n\n#### Эффект перехода (transition_effect)\n\nТолько при замене (указан message_index). Строка; в сообщение не записывается. Значение **replace** (по умолчанию) — плавная замена текста/блока на фронте.\n\n",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "text": { "type": "string", "optional": true, "description": "Текст сообщения. Обязателен при добавлении нового; при замене опционален (частичное обновление)." },
+            "sender": { "type": "string", "optional": true, "default": "auto", "description": "Отправитель: user, assistant, auto, system" },
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (по умолчанию 0)" },
+            "message_index": { "type": "integer", "optional": true, "description": "Индекс сообщения для замены. Если указан и сообщение есть — заменяется, иначе добавляется новое." },
+            "meta": { "type": "object", "optional": true, "description": "Метаданные сообщения — отображаются в тултипе иконки инфо (модель, токены и т.п.). Не для эффектов." },
+            "effect": { "type": "object", "optional": true, "description": "Эффект на фронте. При замене: указан — применить; не указан — предыдущий эффект снимается. См. блок «Дополнительная информация»." },
+            "transition_effect": { "type": "string", "optional": true, "description": "Эффект перехода при замене (только при указанном message_index)." }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "message_index": { "type": "integer", "replaceable": true, "description": "Индекс сообщения в чате (при замене — тот же, при добавлении — новый)" }
+          }
+        }
+      }
+    },
+    "remove_chat_message": {
+      "description": "Удалить одно сообщение из чата (storage и UI).",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (по умолчанию 0)" },
+            "message_index": { "type": "integer", "optional": false, "description": "Индекс удаляемого сообщения" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    },
+    "chat_get_history": {
+      "description": "Последние N сообщений чата с опциональной фильтрацией и обрезкой по символам. Удобно для передачи истории в completion.",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата (по умолчанию 0)" },
+            "limit": { "type": "integer", "optional": true, "description": "Максимум сообщений (по умолчанию 20)" },
+            "from_index": { "type": "integer", "optional": true, "description": "Вернуть сообщения с индексом ≤ указанному (по умолчанию — с самого нового)" },
+            "offset": { "type": "integer", "optional": true, "description": "Сдвиг от самого нового сообщения: 0 = включая текущее, 1 = без него (чтобы не дублировать промпт в истории). По умолчанию 0." },
+            "max_chars": { "type": "integer", "optional": true, "description": "Ограничение суммарного объёма текста сообщений в символах. Сообщения берутся с самых новых, останавливаясь при превышении лимита." },
+            "extra_roles": { "type": "array", "optional": true, "description": "Дополнительные роли (sender) для включения помимо user и assistant. Например: [\"auto\"] или [\"auto\", \"system\"]. По умолчанию только user и assistant.", "items": { "type": "string" } }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "messages": {
+              "type": "array",
+              "replaceable": true,
+              "description": "Список сообщений (от старых к новым). Каждый объект: { text, sender, timestamp, message_index }",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string", "description": "Текст сообщения" },
+                  "sender": { "type": "string", "description": "Отправитель: user, assistant, auto, system" },
+                  "timestamp": { "type": "string", "description": "ISO 8601 время создания" },
+                  "message_index": { "type": "integer", "description": "Индекс сообщения в чате" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "clear_chat": {
+      "description": "Очистить историю чата в UI (emit с app_chat_id)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "app_chat_id": { "type": "integer", "optional": true, "description": "ID чата приложения (app)" }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success | error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string", "description": "Код ошибки" }, "message": { "type": "string", "description": "Сообщение об ошибке" } } }
+      }
+    }
+  },
+  "contributes": {}
+}

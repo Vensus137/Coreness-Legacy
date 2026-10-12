@@ -1,0 +1,643 @@
+# ============================================
+# Tenant Storage
+# Purpose: tenant Tenant Storage management
+# ============================================
+
+# ============================================
+# BLOCK 1: Main Menu
+# ============================================
+
+# Tenant Storage main menu
+tenant_storage_menu:
+  description: "Tenant Storage management main menu"
+  
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_storage_menu"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Get list of groups
+    - action: "get_storage_groups"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_menu|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_menu_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# ============================================
+# BLOCK 2: Input Handling
+# ============================================
+
+# Group/key/value input handling
+tenant_storage_input_handler:
+  description: "Group, key and value input handling"
+  
+  trigger:
+    - event_type: "message"
+      user_state: "tenant_storage_input"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Check that input is not a command
+    - action: "execute_scenario"
+      params:
+        scenario: "check_message"
+    
+    # Clear state
+    - action: "clear_user_state"
+    
+    # Save entered data to User Storage for passing between scenarios
+    - action: "set_user_storage"
+      params:
+        key: "temp_group_key"
+        value: "{event_text|regex:^([^\\s]+)|lower}"
+    
+    # Determine number of words in input
+    - action: "validate"
+      params:
+        condition: '$event_text regex "^[^\\s]+$"'
+      transition:
+        # One word - only group
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_storage_view_group"
+        # Two or more words
+        - action_result: "failed"
+          transition_action: "continue"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Save key (second word)
+    - action: "set_user_storage"
+      params:
+        key: "temp_key"
+        value: "{event_text|regex:\\s+([^\\s]+)|lower}"
+    
+    # Check if there is a third word (value)
+    - action: "validate"
+      params:
+        condition: '$event_text regex "^[^\\s]+\\s+[^\\s]+\\s+"'
+      transition:
+        # Three or more words - group + key + value
+        - action_result: "success"
+          transition_action: "continue"
+        # Two words - group + key
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_storage_view_key"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Save value (everything after second space) to User Storage
+    - action: "set_user_storage"
+      params:
+        key: "temp_value"
+        value: "{event_text|regex:\\s+[^\\s]+\\s+(.+)$}"
+    
+    # Navigate to value change
+    - action: "execute_scenario"
+      params:
+        scenario: "tenant_storage_edit_value"
+
+# ============================================
+# BLOCK 3: Group View
+# ============================================
+
+# Group view
+tenant_storage_view_group:
+  description: "Group view in YAML format"
+  
+  step:
+    # Get active tenant and group from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_group_key"
+        _response_key: "temp_group_key"
+    
+    # Get group with formatting
+    - action: "get_storage"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        group_key: "{_cache.temp_group_key}"
+        format: true
+        _namespace: "view_group"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+        - action_result: "not_found"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_storage_group_not_found"
+    
+    # Send group in YAML format
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_view_group|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_view_group_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# Group not found notification
+tenant_storage_group_not_found:
+  description: "Group not found notification"
+  
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_group_not_found|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_group_not_found_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# ============================================
+# BLOCK 4: Key Value View
+# ============================================
+
+# Key value view
+tenant_storage_view_key:
+  description: "Key value view"
+  
+  step:
+    # Get active tenant, group and key from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_group_key"
+        _response_key: "temp_group_key"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_key"
+        _response_key: "temp_key"
+    
+    # Get key value with formatting
+    - action: "get_storage"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        group_key: "{_cache.temp_group_key}"
+        key: "{_cache.temp_key}"
+        format: true
+        _namespace: "view_key"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+        - action_result: "not_found"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_storage_key_not_found"
+    
+    # Send key value
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_view_key|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_view_key_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# Key not found notification
+tenant_storage_key_not_found:
+  description: "Key not found notification"
+  
+  step:
+    # Get group and key from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "temp_group_key"
+        _response_key: "temp_group_key"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_key"
+        _response_key: "temp_key"
+      
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_key_not_found|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_key_not_found_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# ============================================
+# BLOCK 5: Value Change/Add
+# ============================================
+
+# Value change/add
+tenant_storage_edit_value:
+  description: "Value change/add (group + key + value entered)"
+  
+  step:
+    # Get active tenant, group, key and value from User Storage
+    - action: "get_user_storage"
+    
+    # Get current value for display (if exists)
+    - action: "get_storage"
+      params:
+        tenant_id: "{_cache.user_storage_values.active_tenant_id}"
+        group_key: "{_cache.user_storage_values.temp_group_key}"
+        key: "{_cache.user_storage_values.temp_key}"
+        format: true
+        _namespace: "current_value"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+        - action_result: "not_found"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_storage_edit_new_value"
+    
+    # Show confirmation with current and new value
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_edit_value|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_edit_value_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# New value addition confirmation (for case when value not found)
+tenant_storage_edit_new_value:
+  description: "New value addition confirmation for non-existent key"
+  
+  step:
+    # Get entire User Storage (need multiple values)
+    - action: "get_user_storage"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_edit_new_value|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_edit_new_value_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# Value save execution
+tenant_storage_edit_execute:
+  description: "Value save execution"
+  
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_storage_edit_execute"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get entire User Storage (need multiple values)
+    - action: "get_user_storage"
+    
+    # Save value (returns saved data in response_data)
+    - action: "set_storage"
+      params:
+        tenant_id: "{_cache.user_storage_values.active_tenant_id}"
+        group_key: "{_cache.user_storage_values.temp_group_key}"
+        key: "{_cache.user_storage_values.temp_key}"
+        value: "{_cache.user_storage_values.temp_value}"
+        format: true
+        _namespace: "edit_saved"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_edit_execute|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_edit_execute_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Clear temporary data from User Storage
+    - action: "delete_user_storage"
+      params:
+        key: "temp_group_key"
+    
+    - action: "delete_user_storage"
+      params:
+        key: "temp_key"
+    
+    - action: "delete_user_storage"
+      params:
+        key: "temp_value"
+
+# ============================================
+# BLOCK 6: Value Deletion
+# ============================================
+
+# Value deletion confirmation
+tenant_storage_delete_value_confirm:
+  description: "Value deletion confirmation"
+  
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_storage_delete_value_confirm"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get entire User Storage (need multiple values)
+    - action: "get_user_storage"
+    
+    # Get current value for display
+    - action: "get_storage"
+      params:
+        tenant_id: "{_cache.user_storage_values.active_tenant_id}"
+        group_key: "{_cache.user_storage_values.temp_group_key}"
+        key: "{_cache.user_storage_values.temp_key}"
+        format: true
+        _namespace: "delete_value"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+        - action_result: "not_found"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_storage_delete_value_not_found"
+    
+    # Show deletion confirmation
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_delete_value_confirm|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_delete_value_confirm_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+
+# Value not found notification
+tenant_storage_delete_value_not_found:
+  description: "Value not found notification"
+  
+  step:
+    # Get group and key from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "temp_group_key"
+        _response_key: "temp_group_key"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_key"
+        _response_key: "temp_key"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_delete_value_not_found|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_delete_value_not_found_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "tenant_storage_input"
+        expires_in_seconds: 300
+
+# Value deletion execution
+tenant_storage_delete_value_execute:
+  description: "Value deletion execution"
+  
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_storage_delete_value_execute"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get entire User Storage (need multiple values)
+    - action: "get_user_storage"
+    
+    # Get value before deletion for display
+    - action: "get_storage"
+      params:
+        tenant_id: "{_cache.user_storage_values.active_tenant_id}"
+        group_key: "{_cache.user_storage_values.temp_group_key}"
+        key: "{_cache.user_storage_values.temp_key}"
+        _namespace: "deleted_value"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+        - action_result: "not_found"
+          transition_action: "continue"
+    
+    # Delete value
+    - action: "delete_storage"
+      params:
+        tenant_id: "{_cache.user_storage_values.active_tenant_id}"
+        group_key: "{_cache.user_storage_values.temp_group_key}"
+        key: "{_cache.user_storage_values.temp_key}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_delete_value_execute|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_delete_value_execute_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Clear temporary data from User Storage
+    - action: "delete_user_storage"
+      params:
+        key: "temp_group_key"
+    
+    - action: "delete_user_storage"
+      params:
+        key: "temp_key"
+
+# ============================================
+# BLOCK 7: Group Deletion
+# ============================================
+
+# Group deletion confirmation
+tenant_storage_delete_group_confirm:
+  description: "Group deletion confirmation"
+  
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_storage_delete_group_confirm"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant and group from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_group_key"
+        _response_key: "temp_group_key"
+    
+    # Get group for information display
+    - action: "get_storage"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        group_key: "{_cache.temp_group_key}"
+        format: true
+        _namespace: "delete_group"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_delete_group_confirm|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_delete_group_confirm_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+
+# Group deletion execution
+tenant_storage_delete_group_execute:
+  description: "Group deletion execution"
+  
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_storage_delete_group_execute"
+  
+  step:
+    # Default check (loads language)
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant and group from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    - action: "get_user_storage"
+      params:
+        key: "temp_group_key"
+        _response_key: "temp_group_key"
+    
+    # Delete group
+    - action: "delete_storage"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        group_key: "{_cache.temp_group_key}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_storage_delete_group_execute|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_storage_delete_group_execute_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Clear temporary data from User Storage
+    - action: "delete_user_storage"
+      params:
+        key: "temp_group_key"
+

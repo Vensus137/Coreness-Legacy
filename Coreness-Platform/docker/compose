@@ -1,0 +1,1025 @@
+#!/bin/bash
+
+# Wrapper for managing docker-compose via system folder ~/.coreness
+# All compose files and overrides live in ~/.coreness; accessible from any directory
+# Repo docker/ is only a template for updates, not used directly on server
+# Usage: dc [command] [container] or ./docker/compose [command] [container]
+#
+# Reinstall dc without full core_manager: copy this file to server, then:
+#   sudo bash ./compose install   # install to /usr/local/bin (recommended)
+#   bash ./compose install        # install to ~/.local/bin (ensure PATH has it)
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Global variables (env set per-command from container name; all paths use system folder only)
+DC_ENVIRONMENT=""
+
+# Path to configuration file (SYSTEM folder)
+DC_CONFIG_FILE="${HOME}/.coreness/.dc_config"
+
+# Global folder for Docker Compose configuration (SYSTEM folder)
+DC_GLOBAL_CONFIG_DIR="${HOME}/.coreness"
+
+# List of base services (without environment consideration)
+DC_SERVICES=("app" "postgres")
+
+# Paths for Supervisor (centralized constants)
+SUPERVISOR_CONFIG="/etc/supervisor/conf.d/supervisord.conf"
+SUPERVISOR_SOCKET="/var/run/supervisor.sock"
+SUPERVISOR_LOG_DIR="/var/log/supervisor"
+SUPERVISOR_SOCKET_PATHS="/var/run/supervisor.sock /tmp/supervisor.sock /var/run/supervisord.sock"
+
+# Paths for installing dc command
+DC_INSTALL_DIR_ROOT="/usr/local/bin"
+DC_INSTALL_DIR_USER="$HOME/.local/bin"
+
+# Load value from config
+get_config_value() {
+    local key="$1"
+    if [ ! -f "$DC_CONFIG_FILE" ]; then
+        return 1
+    fi
+    
+    # Ignore comments and empty lines, search for KEY=VALUE
+    grep -v '^#' "$DC_CONFIG_FILE" | grep -v '^[[:space:]]*$' | grep "^${key}=" | cut -d'=' -f2- | head -1
+}
+
+# Save value to config
+set_config_value() {
+    local key="$1"
+    local value="$2"
+    
+    # Create file if it doesn't exist
+    if [ ! -f "$DC_CONFIG_FILE" ]; then
+        touch "$DC_CONFIG_FILE"
+        chmod 600 "$DC_CONFIG_FILE"
+    fi
+    
+    # If key already exists - replace, otherwise add
+    if grep -q "^${key}=" "$DC_CONFIG_FILE" 2>/dev/null; then
+        # Replace existing value
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS uses different sed syntax
+            sed -i '' "s|^${key}=.*|${key}=${value}|" "$DC_CONFIG_FILE"
+        else
+            # Linux
+            sed -i "s|^${key}=.*|${key}=${value}|" "$DC_CONFIG_FILE"
+        fi
+    else
+        # Add new value
+        echo "${key}=${value}" >> "$DC_CONFIG_FILE"
+    fi
+}
+
+# Remove value from config
+remove_config_value() {
+    local key="$1"
+    
+    if [ ! -f "$DC_CONFIG_FILE" ]; then
+        return 0
+    fi
+    
+    # Remove line with key
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        # macOS uses different sed syntax
+        sed -i '' "/^${key}=/d" "$DC_CONFIG_FILE"
+    else
+        # Linux
+        sed -i "/^${key}=/d" "$DC_CONFIG_FILE"
+    fi
+}
+
+# Determine docker-compose command
+get_compose_cmd() {
+    # If environment variable is set (for tests), use it
+    if [ -n "$COMPOSE_CMD_MOCK" ]; then
+        echo "$COMPOSE_CMD_MOCK"
+        return 0
+    fi
+    
+    if docker compose version &>/dev/null; then
+        echo "docker compose"
+    elif docker-compose version &>/dev/null; then
+        echo "docker-compose"
+    else
+        echo -e "${RED}❌ docker-compose not found!${NC}" >&2
+        exit 1
+    fi
+}
+
+# Lazy initialization of COMPOSE_CMD (only on actual use)
+_get_compose_cmd_cached() {
+    if [ -z "$COMPOSE_CMD" ]; then
+        COMPOSE_CMD=$(get_compose_cmd)
+    fi
+    echo "$COMPOSE_CMD"
+}
+
+# Check service existence in compose files (merged base + test + prod from system folder)
+# Returns: 0 if service exists, 1 if it doesn't
+check_service_exists() {
+    local service_name="${1:-}"
+    local env="${2:-$DC_ENVIRONMENT}"
+    
+    if [ -z "$service_name" ] || [ -z "$env" ]; then
+        return 1
+    fi
+    
+    local base_config="${DC_GLOBAL_CONFIG_DIR}/docker-compose.yml"
+    if [ ! -f "$base_config" ]; then
+        return 1
+    fi
+    
+    local compose_cmd_base="$(_get_compose_cmd_cached) -f $base_config"
+    [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.test.yml" ] && compose_cmd_base="$compose_cmd_base -f ${DC_GLOBAL_CONFIG_DIR}/docker-compose.test.yml"
+    [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.prod.yml" ] && compose_cmd_base="$compose_cmd_base -f ${DC_GLOBAL_CONFIG_DIR}/docker-compose.prod.yml"
+    local available_services=$($compose_cmd_base config --services 2>/dev/null | tr '\n' ' ')
+    echo "$available_services" | grep -q "\b${service_name}\b"
+}
+
+# Generate override file from config (system folder only)
+generate_override_file() {
+    local env="$1"
+    local service_name="${2:-}"  # Optional; if empty, derived from env (app or app-test)
+    
+    # Use global folder for override file
+    local override_file="${DC_GLOBAL_CONFIG_DIR}/docker-compose.override-${env}.yml"
+    
+    # Create global directory if it doesn't exist
+    mkdir -p "${DC_GLOBAL_CONFIG_DIR}"
+    
+    # Determine service name: if not provided - determine by environment
+    if [ -z "$service_name" ]; then
+        # Use universal function to determine app service name
+        service_name=$(get_service_name "app" "$env")
+    fi
+    
+    # Service name = container name (by our pattern)
+    local container_name="$service_name"
+    
+    # Read resources from config by container name
+    local cpus=$(get_config_value "${container_name}.cpus")
+    local memory=$(get_config_value "${container_name}.memory")
+    local cpus_reserve=$(get_config_value "${container_name}.cpus_reserve")
+    local memory_reserve=$(get_config_value "${container_name}.memory_reserve")
+    
+    # If resources not set - skip this service (but don't delete file, there may be other services)
+    if [ -z "$cpus" ] && [ -z "$memory" ] && [ -z "$cpus_reserve" ] && [ -z "$memory_reserve" ]; then
+        return 0
+    fi
+    
+    # If file doesn't exist - create with header
+    if [ ! -f "$override_file" ]; then
+        echo "services:" > "$override_file"
+    fi
+    
+    # Remove old section for this service if it exists
+    if grep -q "^[[:space:]]*${service_name}:" "$override_file" 2>/dev/null; then
+        # Use sed to remove service section
+        local temp_file=$(mktemp)
+        local in_service=false
+        local indent_level=0
+        
+        while IFS= read -r line || [ -n "$line" ]; do
+            # Determine service section start
+            if [[ "$line" =~ ^[[:space:]]*${service_name}: ]]; then
+                in_service=true
+                indent_level=$(echo "$line" | sed 's/[^ ].*//' | wc -c)
+                continue
+            fi
+            
+            if [ "$in_service" = true ]; then
+                # Determine current indent level
+                local current_indent=$(echo "$line" | sed 's/[^ ].*//' | wc -c)
+                # If indent less than or equal to service level and line is not empty - exit section
+                if [ "$current_indent" -le "$indent_level" ] && [[ "$line" =~ [^[:space:]] ]]; then
+                    in_service=false
+                    echo "$line" >> "$temp_file"
+                fi
+            else
+                echo "$line" >> "$temp_file"
+            fi
+        done < "$override_file"
+        mv "$temp_file" "$override_file"
+    fi
+    
+    # Add service section to end of file
+    cat >> "$override_file" <<EOF
+  $service_name:
+    deploy:
+      resources:
+EOF
+    
+    # Add limits if present
+    if [ -n "$cpus" ] || [ -n "$memory" ]; then
+        echo "        limits:" >> "$override_file"
+        if [ -n "$cpus" ]; then
+            echo "          cpus: '$cpus'" >> "$override_file"
+        fi
+        if [ -n "$memory" ]; then
+            echo "          memory: '$memory'" >> "$override_file"
+        fi
+    fi
+    
+    # Add reservations if present
+    if [ -n "$cpus_reserve" ] || [ -n "$memory_reserve" ]; then
+        echo "        reservations:" >> "$override_file"
+        if [ -n "$cpus_reserve" ]; then
+            echo "          cpus: '$cpus_reserve'" >> "$override_file"
+        fi
+        if [ -n "$memory_reserve" ]; then
+            echo "          memory: '$memory_reserve'" >> "$override_file"
+        fi
+    fi
+}
+
+# Get docker-compose command: always base + test + prod (so all 4 services visible, no orphan warnings)
+# Uses system folder only; no project_root. Generates overrides for both test and prod.
+get_compose_cmd_with_files() {
+    local base_config="${DC_GLOBAL_CONFIG_DIR}/docker-compose.yml"
+    
+    if [ ! -f "$base_config" ]; then
+        echo -e "${RED}❌ Base compose file not found: $base_config${NC}" >&2
+        echo -e "${YELLOW}💡 Run server update to create configuration${NC}" >&2
+        exit 1
+    fi
+    
+    # Generate override files for both test and prod (so resource limits apply to all)
+    for env in test prod; do
+        for service_type in "${DC_SERVICES[@]}"; do
+            local service_name=$(get_service_name "$service_type" "$env")
+            generate_override_file "$env" "$service_name"
+        done
+    done
+    
+    local cmd="$(_get_compose_cmd_cached) -f $base_config"
+    [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.test.yml" ] && cmd="$cmd -f ${DC_GLOBAL_CONFIG_DIR}/docker-compose.test.yml"
+    [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.prod.yml" ] && cmd="$cmd -f ${DC_GLOBAL_CONFIG_DIR}/docker-compose.prod.yml"
+    [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.override-test.yml" ] && cmd="$cmd -f ${DC_GLOBAL_CONFIG_DIR}/docker-compose.override-test.yml"
+    [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.override-prod.yml" ] && cmd="$cmd -f ${DC_GLOBAL_CONFIG_DIR}/docker-compose.override-prod.yml"
+    
+    echo "$cmd"
+}
+
+# Universal function to determine service name by type and environment
+get_service_name() {
+    local service_type="${1:-app}"
+    local env="${2:-$DC_ENVIRONMENT}"
+    
+    # Check that service is in list (to prevent typos)
+    local found=false
+    for svc in "${DC_SERVICES[@]}"; do
+        if [ "$svc" = "$service_type" ]; then
+            found=true
+            break
+        fi
+    done
+    
+    # If not in list - return as is (for backward compatibility)
+    if [ "$found" = false ]; then
+        if [ "$env" = "test" ]; then
+            echo "${service_type}-test"
+        else
+            echo "$service_type"
+        fi
+        return 0
+    fi
+    
+    # Universal rule: test environment = -test suffix, otherwise no suffix
+    if [ "$env" = "test" ]; then
+        echo "${service_type}-test"
+    else
+        echo "$service_type"
+    fi
+}
+
+# Get container name (service name = container name by our pattern)
+get_container_name() {
+    local service="$1"
+    local env="${2:-${DC_ENVIRONMENT:-dev}}"
+    
+    if [ -z "$service" ]; then
+        echo ""  # Return empty string if not specified
+        return 1
+    fi
+    
+    # By our pattern service name always equals container name
+    # test: app-test → app-test, postgres-test → postgres-test
+    # prod: app → app, postgres → postgres
+    echo "$service"
+}
+
+# Install global dc command
+install_dc() {
+    local install_dir=""
+    
+    if [ "$EUID" -eq 0 ]; then
+        install_dir="$DC_INSTALL_DIR_ROOT"
+    else
+        install_dir="$DC_INSTALL_DIR_USER"
+        mkdir -p "$install_dir"
+        
+        # Add to PATH if not added
+        if ! echo "$PATH" | grep -q "$install_dir"; then
+            echo -e "${YELLOW}💡 Adding $install_dir to PATH...${NC}"
+            echo "export PATH=\"\$PATH:$install_dir\"" >> "$HOME/.bashrc"
+            echo "export PATH=\"\$PATH:$install_dir\"" >> "$HOME/.profile"
+            echo -e "${GREEN}✅ PATH updated. Restart terminal or run: source ~/.bashrc${NC}"
+        fi
+    fi
+    
+    local script_path="${BASH_SOURCE[0]}"
+    local target="$install_dir/dc"
+    
+    if cp "$script_path" "$target"; then
+        chmod +x "$target"
+        echo -e "${GREEN}✅ Command 'dc' installed to $target${NC}"
+        echo -e "${CYAN}💡 Now you can use: dc test start, dc test stop, dc test sv status, etc.${NC}"
+    else
+        echo -e "${RED}❌ Error installing command${NC}"
+        exit 1
+    fi
+}
+
+# Show help
+show_help() {
+    echo -e "${BLUE}🐳 Docker Compose Manager${NC}"
+    echo ""
+    echo "Usage:"
+    echo "  dc [command] [container] [options]"
+    echo ""
+    echo -e "${CYAN}Main commands:${NC}"
+    echo "  logs [container] [options]    Show logs (default: last 100 + follow)"
+    echo "                                  Options: -n/--tail N, --no-follow"
+    echo "  start [container]           Start container"
+    echo "  stop [container]            Stop container"
+    echo "  restart [container]         Restart container"
+    echo "  shell [container]           Open shell in container"
+    echo "  exec [container] [cmd]      Execute command in container"
+    echo ""
+    echo -e "${CYAN}View:${NC}"
+    echo "  ps [container]              Show container status"
+    echo "  stats [container]           Show resource usage"
+    echo ""
+    echo -e "${CYAN}Supervisor (only for app containers):${NC}"
+    echo "  sv status [container]       Process status"
+    echo "  sv restart [container]      Restart process"
+    echo "  sv stop [container]         Stop process"
+    echo "  sv start [container]        Start process"
+    echo ""
+    echo -e "${CYAN}Resources:${NC}"
+    echo "  resources show [container]          Show current resources"
+    echo "  resources set [container] [opts]    Set resources"
+    echo "  resources reset [container]         Reset resource settings"
+    echo "    --cpus X                  CPU (1, 1.5, 2, 2.5)"
+    echo "    --memory SIZE             Memory (512m, 1G, 2GB)"
+    echo "    --cpus-reserve X          CPU reserve"
+    echo "    --memory-reserve SIZE     Memory reserve"
+    echo ""
+    echo -e "${YELLOW}💡 Container names:${NC}"
+    echo "    test: app-test, postgres-test"
+    echo "    prod: app, postgres"
+    echo ""
+    echo -e "${CYAN}Utilities:${NC}"
+    echo "  install                      Install global 'dc' command"
+    echo ""
+    echo -e "${GREEN}Examples:${NC}"
+    echo "  dc stats                            # Resources of all containers"
+    echo "  dc logs app-test                    # Logs of app-test (last 100 + follow)"
+    echo "  dc logs app --no-follow             # Only last 100 lines"
+    echo "  dc start app-test                   # Start app-test"
+    echo "  dc restart app                      # Restart app (prod)"
+    echo "  dc sv status app-test               # Process status in app-test"
+    echo "  dc sv restart app                   # Restart process in app"
+    echo "  dc resources set app-test --cpus 0.5 --memory 512m"
+}
+
+# Determine environment by container name
+detect_env_from_container() {
+    local container="$1"
+    if [[ "$container" =~ -test$ ]]; then
+        echo "test"
+    else
+        echo "prod"
+    fi
+}
+
+# Resource management
+manage_resources() {
+    local action="$1"
+    shift
+    
+    case "$action" in
+        show)
+            local container="$1"
+            
+            if [ -z "$container" ]; then
+                echo -e "${YELLOW}⚠️ Specify container to view resources${NC}"
+                echo ""
+                echo "Usage: dc resources show [container]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc resources show app-test"
+                echo "  dc resources show app"
+                exit 1
+            fi
+            
+            echo -e "${BLUE}📊 Current container resources: $container${NC}"
+            
+            local cpus=$(get_config_value "${container}.cpus")
+            local memory=$(get_config_value "${container}.memory")
+            local cpus_reserve=$(get_config_value "${container}.cpus_reserve")
+            local memory_reserve=$(get_config_value "${container}.memory_reserve")
+            
+            if [ -n "$cpus" ] || [ -n "$memory" ] || [ -n "$cpus_reserve" ] || [ -n "$memory_reserve" ]; then
+                if [ -n "$cpus" ]; then
+                    echo -e "  CPU: ${GREEN}$cpus${NC}"
+                fi
+                if [ -n "$memory" ]; then
+                    echo -e "  Memory: ${GREEN}$memory${NC}"
+                fi
+                if [ -n "$cpus_reserve" ]; then
+                    echo -e "  CPU Reserve: ${GREEN}$cpus_reserve${NC}"
+                fi
+                if [ -n "$memory_reserve" ]; then
+                    echo -e "  Memory Reserve: ${GREEN}$memory_reserve${NC}"
+                fi
+            else
+                echo -e "${YELLOW}⚠️ Resources not configured for container '$container'${NC}"
+                echo -e "${CYAN}💡 Use: dc resources set $container --cpus X --memory SIZE${NC}"
+            fi
+            ;;
+        set)
+            local container="$1"
+            shift
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container name!${NC}"
+                echo ""
+                echo "Usage: dc resources set [container] [options]"
+                echo ""
+                echo "Options:"
+                echo "  --cpus X              CPU (number or decimal: 1, 1.5, 2)"
+                echo "  --memory SIZE         Memory: 512m, 1G, 2GB (case insensitive)"
+                echo "  --cpus-reserve X      CPU reserve"
+                echo "  --memory-reserve SIZE Memory reserve"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc resources set app-test --cpus 0.5 --memory 512m"
+                echo "  dc resources set app --cpus 2 --memory 2G"
+                exit 1
+            fi
+            
+            # Determine environment by container name (compose uses global config ~/.coreness only)
+            local env=$(detect_env_from_container "$container")
+            
+            local cpus=""
+            local memory=""
+            local cpus_reserve=""
+            local memory_reserve=""
+            
+            # Parse arguments
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    --cpus)
+                        cpus="$2"
+                        shift 2
+                        ;;
+                    --memory)
+                        memory="$2"
+                        shift 2
+                        ;;
+                    --cpus-reserve)
+                        cpus_reserve="$2"
+                        shift 2
+                        ;;
+                    --memory-reserve)
+                        memory_reserve="$2"
+                        shift 2
+                        ;;
+                    *)
+                        echo -e "${RED}❌ Unknown parameter: $1${NC}"
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            if [ -z "$cpus" ] && [ -z "$memory" ] && [ -z "$cpus_reserve" ] && [ -z "$memory_reserve" ]; then
+                echo -e "${RED}❌ Specify at least one parameter${NC}"
+                echo ""
+                echo "Available parameters:"
+                echo "  --cpus X              CPU (number or decimal: 1, 1.5, 2)"
+                echo "  --memory SIZE         Memory: 512m, 1G, 2GB (case insensitive)"
+                echo "  --cpus-reserve X      CPU reserve"
+                echo "  --memory-reserve SIZE Memory reserve"
+                exit 1
+            fi
+            
+            # Save to config by container name
+            if [ -n "$cpus" ]; then
+                set_config_value "${container}.cpus" "$cpus"
+            fi
+            if [ -n "$memory" ]; then
+                set_config_value "${container}.memory" "$memory"
+            fi
+            if [ -n "$cpus_reserve" ]; then
+                set_config_value "${container}.cpus_reserve" "$cpus_reserve"
+            fi
+            if [ -n "$memory_reserve" ]; then
+                set_config_value "${container}.memory_reserve" "$memory_reserve"
+            fi
+            
+            # Generate override file in global config dir (~/.coreness)
+            if ! generate_override_file "$env" "$container"; then
+                echo -e "${YELLOW}⚠️ Failed to update override file${NC}"
+            fi
+            if ! check_service_exists "$container" "$env"; then
+                echo -e "${YELLOW}⚠️ Container '$container' not found in compose files, but resources saved to config${NC}"
+            fi
+            
+            echo -e "${GREEN}✅ Resources saved to config${NC}"
+            echo -e "${CYAN}   Container: $container${NC}"
+            if [ -n "$cpus" ]; then
+                echo -e "${CYAN}   CPU: $cpus${NC}"
+            fi
+            if [ -n "$memory" ]; then
+                echo -e "${CYAN}   Memory: $memory${NC}"
+            fi
+            if [ -n "$cpus_reserve" ]; then
+                echo -e "${CYAN}   CPU Reserve: $cpus_reserve${NC}"
+            fi
+            if [ -n "$memory_reserve" ]; then
+                echo -e "${CYAN}   Memory Reserve: $memory_reserve${NC}"
+            fi
+            echo -e "${YELLOW}🔄 To apply, run: dc restart $container${NC}"
+            ;;
+        reset)
+            local container="$1"
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container name!${NC}"
+                echo ""
+                echo "Usage: dc resources reset [container]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc resources reset app-test"
+                echo "  dc resources reset app"
+                exit 1
+            fi
+            
+            # Determine environment by container name (compose uses global config ~/.coreness only)
+            local env=$(detect_env_from_container "$container")
+            
+            # Remove all resource settings from config
+            remove_config_value "${container}.cpus"
+            remove_config_value "${container}.memory"
+            remove_config_value "${container}.cpus_reserve"
+            remove_config_value "${container}.memory_reserve"
+            
+            # Update override file in global config dir (~/.coreness)
+            if ! generate_override_file "$env" "$container"; then
+                echo -e "${YELLOW}⚠️ Failed to update override file${NC}"
+            fi
+            
+            echo -e "${GREEN}✅ Resource settings for container '$container' reset${NC}"
+            echo -e "${YELLOW}🔄 To apply, run: dc restart $container${NC}"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $action${NC}"
+            echo "Usage: dc resources [show|set|reset] [container]"
+            exit 1
+            ;;
+    esac
+}
+
+# Supervisor management
+# Container always has one process named "main"
+manage_supervisor() {
+    local action="$1"
+    local container="$2"
+    local proc="main"  # Always one process in container
+    
+    # If container not specified - show error
+    if [ -z "$container" ]; then
+        echo -e "${RED}❌ Specify container!${NC}"
+        echo ""
+        echo "Usage: dc sv [status|restart|stop|start] [container]"
+        echo ""
+        echo -e "${CYAN}Examples:${NC}"
+        echo "  dc sv status app-test"
+        echo "  dc sv restart app"
+        echo ""
+        echo -e "${YELLOW}💡 Supervisor works only in app containers (app-test, app)${NC}"
+        exit 1
+    fi
+    
+    # Check that this is an app container
+    if [[ ! "$container" =~ ^app(-test)?$ ]]; then
+        echo -e "${RED}❌ Supervisor works only in app containers (app-test, app)${NC}"
+        echo -e "${CYAN}💡 Specified container: $container${NC}"
+        exit 1
+    fi
+    
+    # Check that container is running
+    if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+        echo -e "${RED}❌ Container $container is not running${NC}"
+        echo -e "${CYAN}💡 Use: dc start $container${NC}"
+        exit 1
+    fi
+    
+    case "$action" in
+        status)
+            echo -e "${BLUE}📊 Supervisor process status in $container${NC}"
+            
+            # Check if supervisor process is running
+            if ! docker exec "$container" pgrep -x supervisord >/dev/null 2>&1; then
+                echo -e "${YELLOW}⚠️ Supervisor not running in container${NC}"
+                echo -e "${CYAN}💡 Check container logs: dc logs $container${NC}"
+                exit 1
+            fi
+            
+            # Check socket availability (try several possible paths)
+            local socket_found=false
+            for socket_path in $SUPERVISOR_SOCKET_PATHS; do
+                if docker exec "$container" test -S "$socket_path" 2>/dev/null; then
+                    socket_found=true
+                    break
+                fi
+            done
+            
+            if [ "$socket_found" = false ]; then
+                echo -e "${YELLOW}⚠️ Supervisor socket unavailable${NC}"
+                echo -e "${CYAN}💡 Supervisor is running, but socket not found. Try restarting container: dc restart $container${NC}"
+                exit 1
+            fi
+            
+            # Execute command and show actual error if needed
+            local output
+            local exit_code
+            output=$(docker exec "$container" supervisorctl -c "$SUPERVISOR_CONFIG" status 2>&1)
+            exit_code=$?
+            
+            if [ $exit_code -eq 0 ]; then
+                echo "$output"
+            else
+                echo -e "${YELLOW}⚠️ Error getting supervisor status:${NC}"
+                echo "$output"
+                exit 1
+            fi
+            ;;
+        restart)
+            echo -e "${YELLOW}🔄 Restarting process in $container${NC}"
+            if ! docker exec "$container" supervisorctl -c "$SUPERVISOR_CONFIG" restart "$proc" 2>&1; then
+                echo -e "${RED}❌ Error restarting process${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}✅ Process restarted${NC}"
+            ;;
+        stop)
+            echo -e "${YELLOW}⏹ Stopping process in $container${NC}"
+            if ! docker exec "$container" supervisorctl -c "$SUPERVISOR_CONFIG" stop "$proc" 2>&1; then
+                echo -e "${RED}❌ Error stopping process${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}✅ Process stopped${NC}"
+            ;;
+        start)
+            echo -e "${GREEN}▶ Starting process in $container${NC}"
+            if ! docker exec "$container" supervisorctl -c "$SUPERVISOR_CONFIG" start "$proc" 2>&1; then
+                echo -e "${RED}❌ Error starting process${NC}"
+                exit 1
+            fi
+            echo -e "${GREEN}✅ Process started${NC}"
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $action${NC}"
+            echo "Usage: dc sv [status|restart|stop|start] [container]"
+            echo ""
+            echo -e "${CYAN}Examples:${NC}"
+            echo "  dc sv status app-test"
+            echo "  dc sv restart app"
+            echo ""
+            echo -e "${YELLOW}💡 Supervisor works only in app containers (app-test, app)${NC}"
+            exit 1
+            ;;
+    esac
+}
+
+# Initialize configuration file
+init_config() {
+    if [ -f "$DC_CONFIG_FILE" ]; then
+        echo -e "${YELLOW}⚠️  Configuration file already exists: $DC_CONFIG_FILE${NC}"
+        read -p "Overwrite? (yes/no): " confirm
+        if [ "$confirm" != "yes" ]; then
+            echo "Cancelled"
+            return 1
+        fi
+    fi
+    
+    cat > "$DC_CONFIG_FILE" <<EOF
+# Configuration for dc command
+# Format: <container-name>.<parameter>=<value>
+#
+# Universal format: resources stored by container name
+# Independent of environment or service type
+#
+# Resources configured via command: dc <env> resources set <container> --cpus X --memory SIZE
+# IMPORTANT: specify full container name for environment!
+# Formats: --cpus 1.5, --memory 2G, --memory 512m (case insensitive)
+#
+# Container names:
+#   test: app-test, postgres-test
+#   prod: app, postgres
+#
+# Configuration examples:
+# app-test.cpus=0.1
+# app-test.memory=200m
+# postgres-test.cpus=0.2
+# postgres-test.memory=256m
+# app.cpus=0.4
+# app.memory=600m
+# postgres.cpus=0.5
+# postgres.memory=512m
+#
+# Command examples:
+# dc test resources set app-test --cpus 0.1 --memory 200m
+# dc test resources set postgres-test --cpus 0.2 --memory 256m
+# dc prod resources set app --cpus 0.4 --memory 600m
+# dc prod resources set postgres --cpus 0.5 --memory 512m
+EOF
+    
+    chmod 600 "$DC_CONFIG_FILE"
+    echo -e "${GREEN}✅ Configuration file created: $DC_CONFIG_FILE${NC}"
+    echo -e "${CYAN}💡 Edit the file, specifying correct paths and resources${NC}"
+    return 0
+}
+
+# Main logic
+main() {
+    local command="${1:-help}"
+    
+    # Special commands
+    case "$command" in
+        install)
+            install_dc
+            return $?
+            ;;
+        help|--help|-h|"")
+            show_help
+            return 0
+            ;;
+    esac
+    
+    # Move to next argument
+    shift
+    
+    # Execute command
+    case "$command" in
+        start)
+            local container="$1"
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container!${NC}"
+                echo ""
+                echo "Usage: dc start [container]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc start app-test"
+                echo "  dc start app"
+                echo "  dc start postgres-test"
+                exit 1
+            fi
+            
+            # Check if container exists (running or stopped)
+            if ! docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
+                echo -e "${RED}❌ Container '$container' not found${NC}"
+                exit 1
+            fi
+            
+            echo -e "${GREEN}🚀 Starting container: $container${NC}"
+            docker start "$container"
+            ;;
+        stop)
+            local container="$1"
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container!${NC}"
+                echo ""
+                echo "Usage: dc stop [container]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc stop app-test"
+                echo "  dc stop app"
+                exit 1
+            fi
+            
+            # Check if container is running
+            if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+                echo -e "${YELLOW}⚠️ Container '$container' is not running${NC}"
+                exit 1
+            fi
+            
+            echo -e "${YELLOW}⏹ Stopping container: $container${NC}"
+            docker stop "$container"
+            ;;
+        restart)
+            local container="$1"
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container!${NC}"
+                echo ""
+                echo "Usage: dc restart [container]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc restart app-test"
+                echo "  dc restart app"
+                exit 1
+            fi
+            
+            # Check if container exists
+            if ! docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
+                echo -e "${RED}❌ Container '$container' not found${NC}"
+                exit 1
+            fi
+            
+            echo -e "${YELLOW}🔄 Restarting container: $container${NC}"
+            local env=$(detect_env_from_container "$container")
+            local compose_cmd
+            compose_cmd=$(get_compose_cmd_with_files 2>/dev/null) || true
+            if [ -n "$compose_cmd" ] && [ -f "${DC_GLOBAL_CONFIG_DIR}/docker-compose.yml" ]; then
+                (cd "$DC_GLOBAL_CONFIG_DIR" && eval "$compose_cmd stop $container" 2>/dev/null; eval "$compose_cmd rm -f $container" 2>/dev/null; sleep 2; eval "$compose_cmd up -d --no-deps $container") || docker restart "$container"
+            else
+                docker restart "$container"
+            fi
+            ;;
+        ps)
+            local container="$1"
+            
+            if [ -n "$container" ]; then
+                # Show specific container
+                echo -e "${BLUE}📋 Container status: $container${NC}"
+                docker ps --filter "name=^${container}$" --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+            else
+                # Show all project containers (app, postgres, app-test, postgres-test)
+                echo -e "${BLUE}📋 Container status${NC}"
+                docker ps --filter "name=^(app|postgres|app-test|postgres-test)$" --format "table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"
+            fi
+            ;;
+        logs)
+            local container="$1"
+            shift
+            
+            # If container not specified - show available list
+            if [ -z "$container" ]; then
+                echo -e "${YELLOW}⚠️ Specify container!${NC}"
+                echo ""
+                echo -e "${CYAN}Available containers:${NC}"
+                docker ps --format "  {{.Names}}" | grep -E "(app|postgres)" || echo "  (containers not running)"
+                exit 1
+            fi
+            
+            # Check if container is running
+            if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+                echo -e "${RED}❌ Container '$container' is not running${NC}"
+                exit 1
+            fi
+            
+            # Parse options
+            local follow=true  # Follow enabled by default
+            local tail_lines=100  # Last 100 lines by default
+            
+            while [ $# -gt 0 ]; do
+                case "$1" in
+                    -f|--follow)
+                        follow=true
+                        shift
+                        ;;
+                    --no-follow)
+                        follow=false
+                        shift
+                        ;;
+                    -n|--tail)
+                        tail_lines="$2"
+                        shift 2
+                        ;;
+                    --tail=*)
+                        tail_lines="${1#*=}"
+                        shift
+                        ;;
+                    *)
+                        echo -e "${RED}❌ Unknown option: $1${NC}"
+                        exit 1
+                        ;;
+                esac
+            done
+            
+            # Show logs
+            if [ "$follow" = true ]; then
+                docker logs -f --tail "$tail_lines" "$container"
+            else
+                docker logs --tail "$tail_lines" "$container"
+            fi
+            ;;
+        shell)
+            local container="$1"
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container!${NC}"
+                echo ""
+                echo "Usage: dc shell [container]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc shell app-test"
+                echo "  dc shell app"
+                exit 1
+            fi
+            
+            # Check if container is running
+            if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+                echo -e "${RED}❌ Container '$container' is not running${NC}"
+                exit 1
+            fi
+            
+            echo -e "${CYAN}🐚 Opening shell in container: $container${NC}"
+            docker exec -it "$container" bash
+            ;;
+        exec)
+            local container="$1"
+            shift
+            
+            if [ -z "$container" ]; then
+                echo -e "${RED}❌ Specify container and command!${NC}"
+                echo ""
+                echo "Usage: dc exec [container] [command]"
+                echo ""
+                echo -e "${CYAN}Examples:${NC}"
+                echo "  dc exec app-test python main.py"
+                echo "  dc exec app ls -la"
+                exit 1
+            fi
+            
+            if [ $# -eq 0 ]; then
+                echo -e "${RED}❌ Specify command to execute!${NC}"
+                exit 1
+            fi
+            
+            # Check if container is running
+            if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+                echo -e "${RED}❌ Container '$container' is not running${NC}"
+                exit 1
+            fi
+            
+            docker exec "$container" "$@"
+            ;;
+        supervisor|sv)
+            manage_supervisor "$@"
+            ;;
+        resources)
+            manage_resources "$@"
+            ;;
+        stats)
+            local container="$1"
+            
+            if [ -n "$container" ]; then
+                # Show specific container
+                if ! docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
+                    echo -e "${RED}❌ Container '$container' is not running${NC}"
+                    exit 1
+                fi
+                echo -e "${BLUE}📊 Resource usage: $container${NC}"
+                docker stats --no-stream "$container" 2>/dev/null || {
+                    echo -e "${YELLOW}⚠️ Failed to get statistics${NC}"
+                }
+            else
+                # Show all project containers
+                echo -e "${BLUE}📊 Resource usage${NC}"
+                local container_names=$(docker ps --filter "name=^(app|postgres|app-test|postgres-test)$" --format "{{.Names}}" 2>/dev/null)
+                
+                if [ -z "$container_names" ]; then
+                    echo -e "${YELLOW}⚠️ Containers not running${NC}"
+                else
+                    docker stats --no-stream $container_names 2>/dev/null || {
+                        echo -e "${YELLOW}⚠️ Failed to get statistics${NC}"
+                    }
+                fi
+            fi
+            ;;
+        *)
+            echo -e "${RED}❌ Unknown command: $command${NC}"
+            echo ""
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+# Run main only if script is executed directly, not via source
+if [ "${BASH_SOURCE[0]}" == "${0}" ]; then
+    main "$@"
+fi

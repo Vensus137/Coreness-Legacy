@@ -1,0 +1,37 @@
+/**
+ * Общий стиль приглушённой иконки-кнопки (ластик в чате, иконки в списке чатов и т.д.).
+ * Только иконка подсвечивается, без фона; приглушённые цвета, единый эффект при hover/focus.
+ */
+
+.icon-btn-muted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.icon-btn-muted:hover:not(:disabled) {
+  opacity: 0.75;
+  color: var(--color-text);
+}
+
+.icon-btn-muted:disabled {
+  cursor: default;
+  opacity: 0.35;
+  color: var(--color-text-disabled);
+}
+
+.icon-btn-muted:focus {
+  outline: none;
+}
+
+.icon-btn-muted:focus-visible:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}

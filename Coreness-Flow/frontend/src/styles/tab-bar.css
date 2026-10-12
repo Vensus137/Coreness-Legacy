@@ -1,0 +1,397 @@
+/* Обёртка: скроллбар рисуется поверх вкладок (как в VS Code), не сдвигает layout */
+.tab-bar-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: var(--title-bar-height);
+}
+
+.tab-bar {
+  display: flex;
+  align-items: flex-end;
+  background: transparent;
+  padding: 0 0 0 var(--space-xs);
+  flex: 1;
+  min-width: 0;
+  gap: 0;
+  max-height: var(--title-bar-height);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Кастомный скроллбар поверх всех вкладок (включая активную): не занимает место */
+.tab-bar-scrollbar-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.tab-bar-scrollbar-overlay .tab-bar-scrollbar-track {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  margin: 0 var(--space-xs);
+  cursor: default;
+}
+
+.app-header.title-bar:hover .tab-bar-scrollbar-overlay .tab-bar-scrollbar-track {
+  background: var(--color-bg-hover);
+  border-radius: 2px;
+}
+
+.tab-bar-scrollbar-thumb {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 2px;
+  pointer-events: auto;
+  cursor: default;
+  background: transparent;
+  transition: background 0.1s;
+}
+
+.app-header.title-bar:hover .tab-bar-scrollbar-thumb {
+  background: var(--color-border);
+}
+
+.tab-bar-scrollbar-thumb:hover,
+.tab-bar-scrollbar-thumb--dragging {
+  background: var(--color-text-disabled);
+}
+
+/* Разделитель: на 8px короче (20px), по центру по вертикали. Чуть светлее, чтобы был виден на фоне заголовка */
+.tab-sep {
+  flex-shrink: 0;
+  width: 1px;
+  min-height: 20px;
+  max-height: 20px;
+  height: 20px;
+  align-self: center;
+  background: var(--color-border-focus);
+}
+
+/* Индикатор вставки: нулевая ширина в layout (вкладки не сдвигаются), линия рисуется через ::before поверх */
+.tab-drop-indicator {
+  flex-shrink: 0;
+  width: 0;
+  overflow: visible;
+  position: relative;
+  align-self: stretch;
+  z-index: 2;
+}
+
+.tab-drop-indicator::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 20px;
+  background: var(--color-text-disabled);
+  border-radius: 2px;
+  z-index: 1;
+}
+
+/* Вкладка, которую перетаскивают: фиксируем эффект как при наведении (понятно, какую перемещаем) */
+.tab--drag-source:not(.tab--active) {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.tab--drag-source:not(.tab--active)::after {
+  content: '';
+  position: absolute;
+  inset: var(--tab-hover-inset);
+  background: var(--color-bg-tab-hover);
+  border-radius: calc(var(--tab-r) - var(--tab-hover-inset));
+  z-index: 0;
+}
+
+/* Во время перетаскивания отключаем hover на остальных вкладках (специфичность не ниже, чем у правил hover ниже по файлу) */
+.tab-bar-wrap--dragging .tab:not(.tab--active):not(.tab-add):not(.tab--drag-source):hover {
+  background: var(--color-bg-title);
+  color: var(--color-text-secondary);
+}
+
+.tab-bar-wrap--dragging .tab:not(.tab--active):not(.tab-add):not(.tab--drag-source):hover::after {
+  content: none;
+}
+
+/* Вкладка: размеры и отступы через переменные — одна точка правки, без сдвига текста при переключении в режим редактирования. */
+.tab {
+  --tab-r: var(--radius-lg);
+  --tab-close-size: 18px;
+  --tab-label-indent: 5px;
+  --tab-edit-inset: 6px;
+  --tab-edit-border-width: 1px;
+  --tab-hover-inset: 3px;
+  /* Расстояние от левого края вкладки до начала текста (и в подписи, и в инпуте). */
+  --tab-text-offset-left: calc(var(--space-md) + var(--tab-label-indent));
+  position: relative;
+  align-self: stretch;
+  overflow: hidden;
+  background: var(--color-bg-title);
+  color: var(--color-text-secondary);
+  border: none;
+  padding: 0 calc(var(--space-md) + var(--tab-close-size)) 0 var(--space-md);
+  font-size: 13px;
+  cursor: default;
+  flex: 0 0 auto;
+  width: fit-content;
+  min-width: 120px;
+  max-width: 200px;
+  border-radius: var(--tab-r) var(--tab-r) 0 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  -webkit-app-region: no-drag;
+  user-select: none;
+}
+
+/* В режиме редактирования: симметричные отступы от краёв вкладки. */
+.tab--editing {
+  cursor: default;
+  padding-left: var(--tab-edit-inset);
+  padding-right: var(--tab-edit-inset);
+}
+
+/* Окно переименования: начало текста = --tab-text-offset-left (как у .tab-label), без сдвига при входе в редактирование. */
+.tab .tab-label-edit {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding-left: calc(var(--tab-text-offset-left) - var(--tab-edit-inset) - var(--tab-edit-border-width));
+  padding-right: calc(var(--space-md) - var(--tab-edit-inset) - var(--tab-edit-border-width));
+  padding-top: 0;
+  padding-bottom: 0;
+  border: var(--tab-edit-border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-input);
+  color: var(--color-text);
+  font-size: inherit;
+  font-family: inherit;
+  line-height: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.tab .tab-label-edit:hover {
+  border-color: var(--color-border-focus);
+}
+
+.tab .tab-label-edit:focus {
+  border-color: var(--color-border-focus);
+  box-shadow: none;
+}
+
+/* Отступ слева под индикатор «внимание» (минимальный), чтобы не сдвигать текст при появлении и не раздувать вкладку вправо */
+.tab .tab-label {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  padding-left: var(--tab-label-indent);
+}
+
+.tab .tab-close {
+  position: absolute;
+  right: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  flex-shrink: 0;
+  margin-left: auto;
+  opacity: 0;
+  pointer-events: none;
+  width: var(--tab-close-size);
+  height: var(--tab-close-size);
+}
+
+/* Обёртка Tooltip не должна менять контейнер для absolute: позиционируем host как крестик, крестик внутри — обычный поток */
+.tab .tooltip-host {
+  position: absolute;
+  right: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.tab:hover .tooltip-host,
+.tab--active .tooltip-host {
+  pointer-events: auto;
+}
+
+.tab .tooltip-host .tab-close {
+  position: static;
+  margin-left: 0;
+  transform: none;
+}
+
+.tab:hover .tab-close,
+.tab--active .tab-close {
+  opacity: 0.8;
+  pointer-events: auto;
+}
+
+.tab:hover .tooltip-host .tab-close,
+.tab--active .tooltip-host .tab-close {
+  opacity: 0.8;
+  pointer-events: auto;
+}
+
+/* Hover неактивной вкладки (кроме плюса): подсветка с отступом от границы */
+.tab:not(.tab--active):not(.tab-add):hover {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
+.tab:not(.tab--active):not(.tab-add):hover::after {
+  content: '';
+  position: absolute;
+  inset: var(--tab-hover-inset);
+  background: var(--color-bg-tab-hover);
+  border-radius: calc(var(--tab-r) - var(--tab-hover-inset));
+  z-index: 0;
+}
+
+/* Активная вкладка: фон рисуем ::before на 1px шире (перекрывает разделители), размер вкладки в layout не меняется — нет сдвига соседних при переключении */
+.tab--active {
+  background: transparent;
+  color: var(--color-text-tab-active);
+  overflow: visible;
+  z-index: 1;
+}
+
+.tab--active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -1px;
+  right: -1px;
+  background: var(--color-bg);
+  border-radius: var(--tab-r) var(--tab-r) 0 0;
+  z-index: -1;
+}
+
+.tab--active:hover {
+  background: transparent;
+  color: var(--color-text-tab-active);
+}
+
+/* Крестик закрытия: светлее и крупнее */
+.tab-close {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: default;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  border-radius: var(--radius-sm);
+  width: var(--tab-close-size);
+  height: var(--tab-close-size);
+}
+
+.tab-close:hover {
+  opacity: 1;
+  background: var(--color-bg-tab-hover);
+  color: var(--color-text);
+}
+
+.tab-close svg {
+  width: 11px;
+  height: 11px;
+}
+
+.tab-add {
+  flex-shrink: 0;
+  min-width: 32px;
+  width: 32px;
+  margin-left: 2px;
+  padding: var(--radius-md) var(--space-sm);
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-md);
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
+
+/* Hover плюса: подсветка с отступом 4px (выделение чуть больше иконки), цвет иконки не меняется */
+.tab.tab-add:hover {
+  background: transparent;
+}
+
+.tab.tab-add:hover::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  background: var(--color-bg-tab-hover);
+  border-radius: var(--radius-md);
+  z-index: 0;
+}
+
+.tab-add svg {
+  position: relative;
+  z-index: 1;
+  width: 18px;
+  height: 18px;
+  color: inherit;
+}
+
+/* Эффект «внимание»: новое сообщение в фоне — индикатор. Мигает 2–3 раза, затем плавно переходит в ровное свечение. */
+.tab.tab--attention:not(.tab--active)::before {
+  --tab-attention-dot: #6b7c9e;
+  --tab-attention-dot-size: 5px;
+  content: '';
+  position: absolute;
+  left: calc((var(--tab-hover-inset) + var(--tab-text-offset-left)) / 2 - var(--tab-attention-dot-size) / 2);
+  top: 50%;
+  transform: translateY(-50%);
+  width: var(--tab-attention-dot-size);
+  height: var(--tab-attention-dot-size);
+  border-radius: 50%;
+  background: var(--tab-attention-dot);
+  z-index: 1;
+  animation: tab-attention-flash 10s ease-in-out 1 forwards;
+}
+
+/* Два полных цикла: 0 → 100 → 0 → 100, затем заморозка на целевом свечении */
+@keyframes tab-attention-flash {
+  0% { opacity: 0; }
+  5% { opacity: 1; }
+  12% { opacity: 0; }
+  17% { opacity: 1; }
+  24% { opacity: 0; }
+  32% { opacity: 0.65; }
+  100% { opacity: 0.65; }
+}

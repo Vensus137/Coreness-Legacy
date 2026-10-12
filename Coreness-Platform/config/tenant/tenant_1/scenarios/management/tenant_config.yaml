@@ -1,0 +1,225 @@
+# ============================================
+# Tenant Configuration Management
+# Purpose: setting tenant configuration attributes (ai_token, etc.)
+# ============================================
+
+# ============================================
+# BLOCK 1: Tenant Configuration Main Menu
+# ============================================
+
+# Tenant configuration menu
+tenant_config_menu:
+  description: "Display tenant configuration menu"
+
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_config_menu"
+  
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_config_menu|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_config_menu_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 2: AI Token Setup
+# ============================================
+
+# AI token request
+set_ai_token_input:
+  description: "Request AI token for setup"
+
+  trigger:
+    - event_type: "callback"
+      callback_data: "set_ai_token_input"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_input|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.set_ai_token_input_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "set_ai_token"
+        expires_in_seconds: 300
+
+# ============================================
+# BLOCK 3: AI Token Input Handling
+# ============================================
+
+set_ai_token_handler:
+  description: "AI token input handling"
+
+  trigger:
+    - event_type: "message"
+      user_state: "set_ai_token"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Check that input is not a command
+    - action: "execute_scenario"
+      params:
+        scenario: "check_message"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Clear state
+    - action: "clear_user_state"
+    
+    # Check if input is null/none (for token deletion)
+    - action: "validate"
+      params:
+        condition: '{event_text|lower} == "null" or {event_text|lower} == "none"'
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_ai_token_delete"
+        - action_result: "failed"
+          transition_action: "continue"
+        - action_result: "error"
+          transition_action: "continue"
+    
+    # Token format validation (allowed characters: letters, numbers, dashes, underscores)
+    - action: "validate"
+      params:
+        condition: '$event_text regex "^[A-Za-z0-9_-]+$"'
+      transition:
+        - action_result: "success"
+          transition_action: "continue"
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_ai_token_invalid_format"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_ai_token_invalid_format"
+    
+    # Send notification about installation start
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_handler_loading|fallback:{_cache.translation.default|fallback:Unknown error}}
+    
+    # Set AI token
+    - action: "update_tenant_config"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        ai_token: "{event_text}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_ai_token_error"
+    
+    # Successful completion
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_handler_success|fallback:{_cache.translation.default|fallback:Unknown error}}
+        message_edit: "{_cache.last_message_id}"
+      transition:
+        - action_result: "any"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_config_menu"
+
+# ============================================
+# BLOCK 4: Invalid AI Token Format Handling
+# ============================================
+
+set_ai_token_invalid_format:
+  description: "Invalid AI token format error handling"
+
+  step:
+
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_invalid_format|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.set_ai_token_invalid_format_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 5: AI Token Deletion
+# ============================================
+
+set_ai_token_delete:
+  description: "AI token deletion via null/none input"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Send notification about deletion start
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_delete|fallback:{_cache.translation.default|fallback:Unknown error}}
+    
+    # Delete AI token (pass null)
+    - action: "update_tenant_config"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        ai_token: null
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_ai_token_error"
+    
+    # Successful completion
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_delete_success|fallback:{_cache.translation.default|fallback:Unknown error}}
+        message_edit: "{_cache.last_message_id}"
+      transition:
+        - action_result: "any"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_config_menu"
+
+# ============================================
+# BLOCK 6: AI Token Setup Error Handling
+# ============================================
+
+set_ai_token_error:
+  description: "AI token setup error handling"
+
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_ai_token_error|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.set_ai_token_error_inline|fallback:{_cache.translation.default_inline|fallback:}}"

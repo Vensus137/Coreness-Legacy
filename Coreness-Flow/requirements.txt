@@ -1,0 +1,32 @@
+# Core dependencies
+PyYAML>=6.0.1
+
+# Backend WebSocket server (для Electron frontend)
+websockets>=12.0
+python-dateutil>=2.8.0
+croniter>=2.0.0
+
+# Markdown rendering in chat
+markdown>=3.5.0
+pygments>=2.17.0
+
+# ai_service: OpenAI-совместимые агрегаторы (completion)
+openai>=1.0.0
+
+# vector_store: локальный RAG — BGE-M3 ONNX INT8 (dense + sparse из модели)
+qdrant-client>=1.7.0
+transformers>=5.0.0
+onnxruntime>=1.16.0
+numpy>=1.24.0
+psutil>=5.9.0
+
+# download_service: загрузка по URL и извлечение текста
+aiohttp>=3.9.0
+aiofiles>=23.2.0
+filetype>=1.2.0
+chardet>=5.2.0
+PyMuPDF>=1.24.0
+pandas>=2.0.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+python-docx>=1.1.0

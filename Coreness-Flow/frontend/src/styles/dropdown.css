@@ -1,0 +1,36 @@
+/**
+ * Общий стиль выпадающего меню (пузырь): сайдбар-шестерёнка, контекстное меню вкладок и т.п.
+ */
+
+.app-dropdown {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--radius-md) 0;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+}
+
+.app-dropdown--fixed {
+  position: fixed;
+  z-index: 1000;
+  min-width: 160px;
+}
+
+.app-dropdown-item {
+  display: block;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: var(--space-sm) var(--space-lg);
+  text-align: left;
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: default;
+}
+
+.app-dropdown-item:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-strong);
+}

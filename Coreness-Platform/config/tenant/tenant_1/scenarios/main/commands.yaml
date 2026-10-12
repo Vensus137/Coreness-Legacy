@@ -1,0 +1,106 @@
+# ============================================
+# BLOCK 1: Start
+# ============================================
+
+start:
+  description: "Hidden command to start Master Bot"
+  
+  trigger:
+    - event_type: "message"
+      event_text: "/start"
+    - event_type: "callback"
+      callback_data: "start"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.start|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.start_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 2: Help
+# ============================================
+help:
+  description: "Help command with brief information about Master Bot"
+  
+  trigger:
+    - event_type: "message"
+      event_text: "/help"
+    - event_type: "callback"
+      callback_data: "help"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.help|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.help_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 3: Me
+# ============================================
+me:
+  description: "Public command to display user information"
+  
+  trigger:
+    - event_type: "message"
+      event_text: "/me"
+
+  step:
+    # User information (available to all)
+    - action: "send_message"
+      params:
+        text: |
+          👤 <b>User information</b>
+          
+          <b>ID:</b> <code>{user_id}</code>
+          <b>Username:</b> <code>@{username|fallback:not specified}</code>
+          <b>First name:</b> <code>{first_name|fallback:not specified}</code>
+          <b>Last name:</b> <code>{last_name|fallback:not specified}</code>
+          <b>Language:</b> <code>{language_code|fallback:not specified}</code>
+        message_edit: true
+
+# ============================================
+# BLOCK 4: File Info
+# ============================================
+file_info:
+  description: "Hidden command to get file_id and type of attachments for subsequent forwarding"
+  
+  trigger:
+    - event_type: "message"
+      event_text: "/file"
+
+  step:
+    # File information (available to all)
+    - action: "send_message"
+      params:
+        text: |
+          📎 <b>File information</b>
+          
+          <b>file_id:</b> <code>{event_attachment[0].file_id|fallback:{reply_attachment[0].file_id|fallback:File not found}}</code>
+          <b>type:</b> <code>{event_attachment[0].type|fallback:{reply_attachment[0].type|fallback:Type not found}}</code>
+        message_edit: true
+
+# ============================================
+# BLOCK 5: Language
+# ============================================
+language:
+  description: "Language change command"
+  
+  trigger:
+    - event_type: "message"
+      event_text: "/language"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "choose_language"

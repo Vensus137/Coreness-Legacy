@@ -1,0 +1,8 @@
+# Session scaffolding: lives on disk only, never in the archive
+/AGENTS.md
+/PROJECT.md
+/SPEC.md
+/NOTES.md
+/tmp/
+/skills/
+/.env

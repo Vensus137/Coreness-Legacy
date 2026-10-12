@@ -1,0 +1,42 @@
+########################################################
+# Роутинг сообщения пользователя
+########################################################
+system_chat_handler:
+
+  trigger:
+    - event_type: "message"
+      event_source: "app"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario:
+          - system_loading
+          - system_get_settings
+
+    - action: "execute_scenario"
+      params:
+        scenario:
+          - function_prompt
+          - function_context
+          - function_messages
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_routing"
+
+########################################################
+# Получение настроек системы
+########################################################
+system_get_settings:
+  step:
+    - action: "get_storage"
+      params:
+        group_key: "system"
+        _response_key: "system"
+
+    - action: "get_storage"
+      params:
+        group_key: "tools"
+        _response_key: "tools"
+      

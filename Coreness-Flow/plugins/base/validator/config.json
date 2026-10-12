@@ -1,0 +1,46 @@
+{
+  "metadata": {
+    "name": "validator",
+    "description": "Сервис валидации условий в сценариях (через condition_parser)"
+  },
+  "settings": {},
+  "actions": {
+    "validate": {
+      "description": "Валидация условия по данным контекста; результат success / failed / error",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "condition": {
+              "type": "string",
+              "optional": false,
+              "min_length": 1,
+              "description": "Условие для проверки (операторы condition_parser: ==, !=, >, <, in, is_null и др.)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success — условие выполнено, failed — не выполнено, error — ошибка проверки"
+        },
+        "error": {
+          "type": "object",
+          "optional": true,
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки (VALIDATION_ERROR, INTERNAL_ERROR)"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        }
+      }
+    }
+  },
+  "contributes": {}
+}

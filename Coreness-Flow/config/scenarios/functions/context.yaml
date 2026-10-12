@@ -1,0 +1,41 @@
+########################################################
+# Функция контекста
+########################################################
+function_prompt:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          prompt: "{event_text}"
+        _namespace: "ai_agent"
+
+function_context:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          context: |
+            Дата: {now|format:pg_datetime}
+        _namespace: "ai_agent"
+
+function_messages:
+  step:
+    - action: "chat_get_history"
+      params:
+        from_index: "{app_message_index}"
+        limit: "{_cache.system.routing_messages|fallback:5}"
+        offset: 1
+        max_chars: "{_cache.system.routing_messages_chars|fallback:5000}"
+        _response_key: "messages"
+        _namespace: "ai_agent"
+
+function_chunks:
+  step:
+    - action: "search_chunks"
+      params:
+        query: "{event_text}"
+        collection: "['user']"
+        top_k: "{_cache.system.routing_chunks|fallback:10}"
+        max_chars: "{_cache.system.routing_chunks_chars|fallback:5000}"
+        _response_key: "chunks"
+        _namespace: "ai_agent"

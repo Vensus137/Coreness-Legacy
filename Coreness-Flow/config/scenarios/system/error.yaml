@@ -1,0 +1,27 @@
+response_error:
+  step:
+    - action: "send_chat_message"
+      params:
+        text: |
+          ❌ Ошибка обработки запроса: {last_error.message|fallback:Неизвестная ошибка}
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_loading_replace_default"
+      transition:
+        - action_result: "any"
+          transition_action: "abort"
+
+system_error:
+  step:
+    - action: "send_chat_message"
+      params:
+        text: |
+          ❌ Системная ошибка: {last_error.message|fallback:Неизвестная ошибка}
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_loading_replace_default"
+      transition:
+        - action_result: "any"
+          transition_action: "abort"

@@ -1,0 +1,45 @@
+services:
+  app:
+    extends:
+      file: docker-compose.yml
+      service: app
+    image: app:latest
+    container_name: app
+    restart: always  # For prod - always restart
+    environment:
+      - ENVIRONMENT=prod
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    # Prod: code and data from host (same as base) - volume mount so extensions/code changes are visible after restart.
+    # Inherits from base: volumes (..:/workspace + supervisord.conf) and command (supervisord) - not overridden here.
+    # Port forwarding for webhooks (GitHub and Telegram) - prod environment
+    ports:
+      - "443:443"  # HTTPS server for webhooks (prod) - standard HTTPS port, allowed by Telegram
+    depends_on:
+      postgres:
+        condition: service_healthy
+    
+    # Resources configured locally via docker-compose.override.yml
+    # Use: ./docker/compose resources set app --cpus 2 --memory 2G
+    # or after installation: dc resources set app --cpus 2 --memory 2G
+
+  postgres:
+    extends:
+      file: docker-compose.yml
+      service: postgres
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-core_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-coreness1234}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      # Override volumes for mounting prod config
+      - ../data/postgresql:/var/lib/postgresql/data
+      # Initialization script for automatic pgvector extension installation
+      - ./init-pgvector.sql:/docker-entrypoint-initdb.d/01-init-pgvector.sql:ro
+      - ./postgresql.prod.conf:/etc/postgresql/postgresql.conf:ro
+      - ./pg_hba.prod.conf:/etc/postgresql/pg_hba.conf:ro
+    ports:
+      - "5432:5432"  # Prod environment uses standard port 5432
+

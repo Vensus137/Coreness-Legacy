@@ -1,0 +1,151 @@
+/** Виджет формы настроек плагина (settingsForm). */
+
+.settings-form-widget {
+  width: 100%;
+  max-width: 480px;
+}
+
+.settings-form-widget--loading,
+.settings-form-widget--error,
+.settings-form-widget--empty {
+  padding: var(--space-lg);
+  color: var(--color-text-secondary);
+}
+
+.settings-form-widget--error {
+  color: var(--color-error, #c00);
+}
+
+.settings-form-widget__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.settings-form-widget__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.settings-form-widget__row--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.settings-form-widget__label {
+  font-size: 0.875rem;
+  color: var(--color-text-secondary);
+}
+
+.settings-form-widget__input {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: 0.875rem;
+}
+
+.settings-form-widget__input:focus {
+  outline: none;
+  border-color: var(--color-border-focus, var(--color-border));
+}
+
+.settings-form-widget__checkbox {
+  width: auto;
+  margin: 0;
+}
+
+.settings-form-widget__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+/* Слот под сообщение фиксированной ширины — кнопка не смещается при появлении/исчезновении текста */
+.settings-form-widget__message-slot {
+  display: inline-flex;
+  align-items: center;
+  min-width: 7rem;
+  min-height: 1.5em;
+}
+
+.settings-form-widget__submit {
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: default;
+}
+
+.settings-form-widget__submit:hover:not(.settings-form-widget__submit--saving) {
+  background: var(--color-bg-hover);
+}
+
+/* Состояние «идёт сохранение» через класс (без ре-рендера), чтобы кнопка не мигала */
+.settings-form-widget__submit--saving {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.settings-form-widget__message {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--color-text-secondary);
+  transition: opacity 0.5s ease-out;
+}
+
+.settings-form-widget__message--fade-out {
+  opacity: 0;
+}
+
+/* Числовое поле без системных стрелок — просто ввод цифр */
+.settings-form-widget__input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.settings-form-widget__input[type="number"]::-webkit-outer-spin-button,
+.settings-form-widget__input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Секретное поле: ввод + переключатель показать/скрыть */
+.settings-form-widget__row--secret .settings-form-widget__label {
+  margin-bottom: 0;
+}
+
+.settings-form-widget__secret-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.settings-form-widget__secret-wrap .settings-form-widget__input {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-form-widget__secret-toggle {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text-secondary);
+  cursor: default;
+}
+
+.settings-form-widget__secret-toggle:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text);
+}

@@ -1,0 +1,15 @@
+/* Экран настроек */
+
+.settings-view {
+  padding: var(--space-xl);
+}
+
+.settings-view h2 {
+  font-size: 18px;
+  margin-bottom: var(--space-lg);
+}
+
+.settings-view p {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}

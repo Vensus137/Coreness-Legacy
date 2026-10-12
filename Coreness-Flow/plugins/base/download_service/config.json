@@ -1,0 +1,157 @@
+{
+  "metadata": {
+    "name": "download_service",
+    "description": "Сервис загрузки файлов по URL и извлечения текста (PDF, DOCX, TXT, MD, HTML, CSV)"
+  },
+  "settings": {
+    "downloads_path": {
+      "type": "string",
+      "default": "downloads",
+      "description": "Папка для загруженных файлов (относительно папки data)"
+    },
+    "max_file_size_mb": {
+      "type": "integer",
+      "default": 10,
+      "description": "Максимальный размер файла в МБ по умолчанию"
+    },
+    "download_timeout_seconds": {
+      "type": "integer",
+      "default": 60,
+      "description": "Максимальное время ожидания ответа при скачивании файла по URL (сек). При превышении запрос прерывается"
+    },
+    "auto_cleanup_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Удалять файл сразу после извлечения текста"
+    },
+    "background_cleanup_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Включить фоновую очистку старых файлов (при keep_file=true)"
+    },
+    "cleanup_interval_seconds": {
+      "type": "integer",
+      "default": 300,
+      "description": "Интервал фоновой очистки в секундах (по умолчанию 5 минут)"
+    },
+    "file_max_age_seconds": {
+      "type": "integer",
+      "default": 86400,
+      "description": "Максимальный возраст файлов в секундах (24 ч). Файлы старше удаляются"
+    },
+    "supported_formats": {
+      "type": "array",
+      "default": [
+        "pdf",
+        "docx",
+        "txt",
+        "md",
+        "html",
+        "csv"
+      ],
+      "description": "Поддерживаемые форматы для валидации и автоопределения"
+    }
+  },
+  "actions": {
+    "download_and_extract": {
+      "description": "Загрузить файл по URL и извлечь текст. Автоопределение типа по magic bytes, Content-Type или расширению",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "optional": false,
+              "description": "URL для загрузки (прямая ссылка, Google Drive, Google Docs/Sheets и т.д.)"
+            },
+            "file_type": {
+              "type": "string",
+              "optional": true,
+              "enum": [
+                "pdf",
+                "docx",
+                "txt",
+                "md",
+                "html",
+                "csv"
+              ],
+              "description": "Подсказка типа файла; если не указан — автоопределение"
+            },
+            "keep_file": {
+              "type": "boolean",
+              "optional": true,
+              "default": false,
+              "description": "Сохранить файл после извлечения (по умолчанию удаляется)"
+            },
+            "max_file_size_mb": {
+              "type": "integer",
+              "optional": true,
+              "min": 1,
+              "max": 500,
+              "description": "Макс. размер в МБ для этого вызова (переопределяет настройку)"
+            },
+            "download_timeout_seconds": {
+              "type": "integer",
+              "optional": true,
+              "min": 10,
+              "max": 3600,
+              "description": "Таймаут загрузки в секундах для этого вызова"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "optional": true,
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "VALIDATION_ERROR, FILE_TOO_LARGE, DOWNLOAD_FAILED, UNSUPPORTED_FORMAT, EXTRACTION_FAILED, TIMEOUT, INTERNAL_ERROR"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "file_text": {
+              "type": "string",
+              "description": "Извлечённый текст"
+            },
+            "file_path": {
+              "type": "string",
+              "optional": true,
+              "description": "Путь к файлу (если keep_file=true)"
+            },
+            "file_metadata": {
+              "type": "object",
+              "description": "Метаданные (source_url, file_type, file_size_bytes, download_timestamp и др.)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "contributes": {
+    "settings": {
+      "label": "Загрузки",
+      "order": 20,
+      "fields": [
+        {"key": "max_file_size_mb", "label": "Макс. размер файла (МБ)"},
+        {"key": "download_timeout_seconds", "label": "Макс. время ожидания загрузки (сек)"},
+        {"key": "auto_cleanup_enabled", "label": "Удалять файл после извлечения"},
+        {"key": "background_cleanup_enabled", "label": "Фоновая очистка старых файлов"},
+        {"key": "cleanup_interval_seconds", "label": "Интервал очистки (сек)"},
+        {"key": "file_max_age_seconds", "label": "Макс. возраст файлов (сек)"}
+      ]
+    }
+  }
+}

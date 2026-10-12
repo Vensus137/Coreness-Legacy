@@ -1,0 +1,41 @@
+{
+  "metadata": {
+    "name": "app",
+    "description": "Настройки приложения CorenessFlow"
+  },
+  "settings": {
+    "api_bus": {
+      "type": "object",
+      "default": {
+        "max_workers": 10
+      },
+      "description": "Пул потоков для действий плагинов"
+    },
+    "shutdown": {
+      "type": "object",
+      "default": {
+        "di_container_timeout": 5.0,
+        "plugin_timeout": 3.0,
+        "background_tasks_timeout": 2.0,
+        "executor_wait": 3.0
+      },
+      "description": "Таймауты graceful shutdown (с): общий, плагины, фоновые задачи, потоки API Bus"
+    },
+    "ui": {
+      "type": "object",
+      "default": {
+        "max_messages": 100,
+        "theme": "dark",
+        "language": "ru"
+      },
+      "description": "Настройки интерфейса: чат, тема, язык"
+    }
+  },
+  "about": [
+    {"label": "Версия", "value": "1.0.0"},
+    {"label": "Лицензия", "value": "Developer"},
+    {"label": "Срок действия", "value": "Бессрочно"},
+    {"label": "Сайт продукта", "value": "coreness.tech", "href": "https://coreness.tech/"},
+    {"label": "Разработка", "value": "@vensus137", "href": "https://t.me/vensus137"}
+  ]
+}

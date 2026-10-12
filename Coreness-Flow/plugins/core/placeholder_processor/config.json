@@ -1,0 +1,180 @@
+{
+  "metadata": {
+    "name": "placeholder_processor",
+    "description": "Процессор плейсхолдеров: модификаторы, вложенные поля, литералы, expand; API Bus async"
+  },
+  "settings": {
+    "max_nesting_depth": {
+      "type": "integer",
+      "default": 20,
+      "description": "Максимальная глубина рекурсии при обработке вложенных плейсхолдеров"
+    },
+    "substitution_result_max_depth": {
+      "type": "integer",
+      "default": 1,
+      "description": "Глубина погружения в результат подстановки (список/словарь): сколько раз обрабатывать элементы после подстановки плейсхолдера"
+    }
+  },
+  "actions": {
+    "process_text_placeholders": {
+      "description": "Обработка плейсхолдеров в строке",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "optional": false,
+              "description": "Строка с плейсхолдерами {key}"
+            },
+            "values": {
+              "type": "object",
+              "optional": false,
+              "description": "Словарь значений для подстановки"
+            },
+            "max_depth": {
+              "type": "integer",
+              "optional": true,
+              "description": "Максимальная глубина вложенности (по умолчанию из настройки)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "description": "Строка с подставленными значениями"
+            }
+          }
+        }
+      }
+    },
+    "process_placeholders": {
+      "description": "Обработка плейсхолдеров в структуре (dict/list/str)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "optional": false,
+              "description": "Данные с плейсхолдерами (dict, list или str)"
+            },
+            "values": {
+              "type": "object",
+              "optional": false,
+              "description": "Словарь значений для подстановки"
+            },
+            "max_depth": {
+              "type": "integer",
+              "optional": true,
+              "description": "Максимальная глубина вложенности (по умолчанию из настройки)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "description": "Данные с подставленными значениями"
+            }
+          }
+        }
+      }
+    },
+    "process_placeholders_full": {
+      "description": "Обработка плейсхолдеров в структуре с сохранением всех полей (полный объект)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "optional": false,
+              "description": "Данные с плейсхолдерами"
+            },
+            "values": {
+              "type": "object",
+              "optional": false,
+              "description": "Словарь значений для подстановки"
+            },
+            "max_depth": {
+              "type": "integer",
+              "optional": true,
+              "description": "Максимальная глубина вложенности"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "object",
+              "description": "Полный объект с подставленными значениями"
+            }
+          }
+        }
+      }
+    }
+  },
+  "contributes": {}
+}

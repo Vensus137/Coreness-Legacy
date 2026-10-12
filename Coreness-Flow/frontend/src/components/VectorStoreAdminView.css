@@ -1,0 +1,319 @@
+/* Вкладка «Векторная база» — один layout от WorkspaceContent, шаблон как у настроек. */
+
+.vector-store-admin {
+  display: flex;
+  flex-direction: column;
+  min-height: min-content;
+  width: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.vector-store-admin__header {
+  /* Стили липкого заголовка — в .workspace-sticky-header (workspace.css). */
+}
+
+.vector-store-admin__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.vector-store-admin__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.vector-store-admin__btn {
+  padding: var(--space-xs) var(--space-sm);
+  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  cursor: default;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vector-store-admin__btn:hover:not(:disabled) {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-focus, var(--color-border));
+}
+
+.vector-store-admin__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.vector-store-admin__btn--danger:hover:not(:disabled) {
+  background: var(--color-danger-bg, #4a2020);
+  border-color: var(--color-danger, #c44);
+}
+
+.vector-store-admin__close {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  cursor: default;
+  font-size: 0.875rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.vector-store-admin__close:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-focus, var(--color-border));
+}
+
+.vector-store-admin__body {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: var(--workspace-sticky-body-padding);
+  padding-left: calc(var(--workspace-sticky-body-padding) + var(--workspace-sticky-content-inline));
+  padding-right: calc(var(--workspace-sticky-body-padding) + var(--workspace-sticky-content-inline));
+}
+
+.vector-store-admin__error {
+  color: var(--color-error, #c00);
+  margin: 0 0 var(--space-md);
+}
+
+.vector-store-admin__info {
+  color: var(--color-text-secondary);
+  font-size: 0.875rem;
+  margin: 0 0 var(--space-md);
+}
+
+.vector-store-admin__info-error {
+  color: var(--color-error, #c00);
+}
+
+.vector-store-admin__empty {
+  color: var(--color-text-muted);
+  margin: var(--space-lg) 0;
+}
+
+/* Список чанков — карточки (как в Perplexity): гибкие блоки с ограничением высоты текста */
+.vector-store-admin__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  margin: var(--space-md) 0;
+}
+
+.vector-store-admin__chunk {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-sm) var(--space-md);
+  padding-right: 48px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.vector-store-admin__chunk:hover {
+  background: var(--color-bg-hover);
+}
+
+.vector-store-admin__chunk-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.vector-store-admin__chunk-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  min-height: 20px;
+}
+
+.vector-store-admin__chunk-date {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.vector-store-admin__chunk-collection {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+/* Иконка удаления: посередине чанка справа, видна при наведении на чанк */
+.vector-store-admin__chunk-delete-wrap {
+  position: absolute;
+  right: var(--space-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.vector-store-admin__chunk:hover .vector-store-admin__chunk-delete-wrap {
+  opacity: 1;
+}
+
+.vector-store-admin__chunk-delete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: default;
+  transition: color 0.15s, background 0.15s;
+}
+
+.vector-store-admin__chunk-delete:hover:not(:disabled) {
+  color: var(--color-error-text, #e88);
+  background: var(--color-danger-bg, rgba(120, 40, 40, 0.3));
+}
+
+.vector-store-admin__chunk-delete:disabled {
+  opacity: 0.7;
+}
+
+.vector-store-admin__chunk-delete svg {
+  width: 16px;
+  height: 16px;
+}
+
+.vector-store-admin__chunk-delete-loading {
+  font-size: 14px;
+}
+
+/* Текст чанка: ограничение по высоте, обрезка без скроллбара (полный текст в модалке по клику) */
+.vector-store-admin__chunk-text {
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: var(--color-text);
+  word-break: break-word;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.vector-store-admin__more {
+  margin-top: var(--space-md);
+}
+
+/* Модалка «Текст и метаданные» — скролл в стиле приложения, шире панель, адаптивная высота текста */
+.vector-store-admin__detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-height: 70vh;
+  overflow: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.vector-store-admin__detail::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vector-store-admin__detail::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.vector-store-admin__detail::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.vector-store-admin__detail::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+.vector-store-admin__detail-label {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.vector-store-admin__detail-value {
+  margin: 0;
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.vector-store-admin__detail-id,
+.vector-store-admin__detail-date {
+  font-family: ui-monospace, monospace;
+}
+
+.vector-store-admin__detail-text {
+  padding: var(--space-sm);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-sm);
+  min-height: 2.5em;
+  max-height: min(28vh, 200px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.vector-store-admin__detail-meta {
+  padding: var(--space-sm);
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-sm);
+  min-height: 2.5em;
+  max-height: min(50vh, 380px);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.vector-store-admin__detail-text::-webkit-scrollbar,
+.vector-store-admin__detail-meta::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vector-store-admin__detail-text::-webkit-scrollbar-track,
+.vector-store-admin__detail-meta::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.vector-store-admin__detail-text::-webkit-scrollbar-thumb,
+.vector-store-admin__detail-meta::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.vector-store-admin__detail-text::-webkit-scrollbar-thumb:hover,
+.vector-store-admin__detail-meta::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+.vector-store-admin__detail-meta {
+  font-family: ui-monospace, monospace;
+  font-size: 0.75rem;
+}

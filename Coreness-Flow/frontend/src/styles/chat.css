@@ -1,0 +1,14 @@
+/* Чат: контент сообщений внутри WorkspaceLayout (скролл и тень — в шаблоне воркспейса). */
+
+.chat-messages {
+  width: 100%;
+  padding: 24px var(--space-md) var(--space-lg);
+  box-sizing: border-box;
+}
+
+.chat-welcome {
+  color: var(--color-placeholder);
+  font-size: 14px;
+  margin-bottom: var(--space-lg);
+  text-align: center;
+}

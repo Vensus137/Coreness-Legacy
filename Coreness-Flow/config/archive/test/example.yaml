@@ -1,0 +1,113 @@
+# Пример сценария для тестирования scenario_processor
+
+test_scenario:
+  description: "Тестовый сценарий для проверки работы движка"
+  
+  trigger:
+    - event_type: "message"
+      event_source: "app"
+      event_text: "/test"
+  
+  step:
+    - action: "send_chat_message"
+      params:
+        text: |
+          Тестовый сценарий запущен
+
+          Дата: {event_timestamp|format:pg_datetime}
+        sender: "system"
+
+    - action: "send_chat_message"
+      params:
+        text: |
+
+          ## Проблема QTextEdit:
+
+          **QTextEdit — для редактирования текста**, не для `chat UI`.
+
+          **Ограничения:**
+
+          - ❌ Нет "пузырей" (message bubbles)
+          - ❌ Плохой контроль `layout`
+          - ❌ Сложно делать разные стили для user/assistant
+          - ❌ Не подходит для современного дизайна
+
+          ***
+
+          ## Решение: QScrollArea + QVBoxLayout
+
+          **Концепт:**
+
+          - **QScrollArea** — контейнер с прокруткой
+          - **QVBoxLayout** — вертикальный layout для сообщений
+          - **Кастомные QWidget** — каждое сообщение = отдельный виджет (bubble)
+
+          ```python
+          import logging
+          from pathlib import Path
+          from typing import Any
+
+          @cache
+          def get_user_data_dir() -> Path:
+              """Каталог данных приложения (создаётся при первом обращении). Windows: %APPDATA%\\CorenessFlow. Результат кэшируется."""
+              if os.name == "nt":
+                  base = os.environ.get("APPDATA") or os.path.expanduser("~")
+              else:
+                  base = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+              path = Path(base) / USER_DATA_DIR_NAME
+              path.mkdir(parents=True, exist_ok=True)
+              return path
+
+          ```
+
+          ```javascript
+          // src/App.jsx — один код для обоих
+
+          function App() {
+              const [backendUrl, setBackendUrl] = useState('');
+              
+              useEffect(() => {
+                  // Определяем окружение
+                  if (window.electron) {
+                      // Desktop (Electron)
+                      window.electron.onBackendPort((port) => {
+                          setBackendUrl(`ws://127.0.0.1:${port}/ws`);
+                      });
+                  } else {
+                      // Web (браузер)
+                      setBackendUrl('wss://api.coreness.app/ws');
+                  }
+              }, []);
+              
+              return (
+                  <div className="app">
+                      {/* Остальной UI одинаковый */}
+                  </div>
+              );
+          }
+          ```
+
+          ```yaml
+          # Глобальные настройки
+          global:
+            file_base_path: "resources"
+            backup_dir: "data/backups"
+            
+          # Настройки логгера (приложение)
+          logger:
+            file_path: "data/app.log"
+
+          # Настройки конкретных плагинов (переопределение)
+          storage_manager:
+            storage_path: "data/custom_storage"
+          ```
+
+          Обычный текст
+
+          > Цитата
+
+          Еще текст
+
+          > 🌐 **Сайт:** [coreness.tech](https://coreness.tech/) · **Документация:** [docs.coreness.tech](https://docs.coreness.tech/)
+
+        sender: "assistant"

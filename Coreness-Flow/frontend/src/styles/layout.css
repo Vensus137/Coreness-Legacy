@@ -1,0 +1,49 @@
+/* Оболочка приложения и область контента */
+
+/* Приложение не скроллится целиком: заголовок и сайдбар фиксированы */
+.app {
+  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
+  cursor: default;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--color-bg);
+  padding-top: 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+/* Воркспейс занимает доступную высоту; скролл только внутри него */
+.content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Одна панель на вкладку; видимая заполняет область, скрытые остаются в DOM */
+.workspace-pane {
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}

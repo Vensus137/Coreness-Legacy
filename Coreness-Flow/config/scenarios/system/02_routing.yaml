@@ -1,0 +1,82 @@
+########################################################
+# Шаг роутинга
+########################################################
+system_routing:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          routing_step: "{{_cache.routing.routing_step|fallback:0}|+1}"
+        _namespace: "routing"
+
+    - action: "delete_cache"
+      params:
+        namespace: "routing_step"
+
+    - action: "validate"
+      params:
+        condition: "{_cache.routing.routing_step} >= {_cache.system.routing_steps_limit|fallback:3}"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "system_routing_step_response"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_routing_step"
+
+########################################################
+# Шаг роутинга выбора функции
+########################################################
+system_routing_step:
+  step:
+    - action: "completion"
+      params:
+        system_prompt: "{_cache.system.routing_prompt|fallback:}"
+        model: "{_cache.system.routing_model|fallback:}"
+        tools: "{_cache.system.routing_tools|fallback:}"
+        tool_choice: "required"
+
+        prompt: "{_cache.ai_agent.prompt|fallback:}"
+        context: "{_cache.ai_agent.context|fallback:}"
+        messages: "{_cache.ai_agent.messages|fallback:}"
+        chunks: "{_cache.ai_agent.chunks|fallback:}"
+        tool_results: "{_cache.ai_agent.tool_results|fallback:}"
+
+        _namespace: "routing_step"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "response_error"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_execution"
+
+########################################################
+# Шаг финального роутинга
+########################################################
+system_routing_step_response:
+  step:
+    - action: "completion"
+      params:
+        system_prompt: "{_cache.system.routing_prompt|fallback:}"
+        model: "{_cache.system.routing_model|fallback:}"
+        tools: "{_cache.system.routing_response_tools|fallback:}"
+        tool_choice: "required"
+
+        prompt: "{_cache.ai_agent.prompt|fallback:}"
+        context: "{_cache.ai_agent.context|fallback:}"
+        messages: "{_cache.ai_agent.messages|fallback:}"
+        chunks: "{_cache.ai_agent.chunks|fallback:}"
+        tool_results: "{_cache.ai_agent.tool_results|fallback:}"
+
+        _namespace: "routing_step"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "response_error"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_execution"

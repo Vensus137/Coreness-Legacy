@@ -1,0 +1,220 @@
+/**
+ * Стили поля ввода чата: обёртка, пузырь, textarea, кнопка отправки.
+ */
+
+.chat-input-wrapper {
+  position: relative;
+  padding: 0 var(--space-lg) var(--space-lg);
+  flex-shrink: 0;
+}
+
+/* Краевая тень снизу — симметрична .workspace-content-frame::before сверху (тот же градиент и высота). */
+.chat-input-wrapper::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: var(--workspace-edge-fade-height);
+  background: linear-gradient(to top, var(--color-bg), transparent);
+  pointer-events: none;
+}
+
+.chat-input-center {
+  width: 100%;
+  max-width: var(--chat-content-max-width);
+  margin: 0 auto;
+}
+
+.chat-input-row {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: 340px;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border-input);
+  border-top: 1px solid var(--color-border);
+  border-radius: var(--radius-bubble);
+}
+
+.chat-input {
+  flex: 1 1 auto;
+  min-height: 25px;
+  max-height: 280px;
+  background: transparent;
+  border: none;
+  padding: var(--space-xs) var(--space-md) 0 0;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+  cursor: text;
+  resize: none;
+  overflow-y: hidden;
+  font-family: inherit;
+  transition: height 0.1s ease-out;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.chat-input::placeholder {
+  color: var(--color-text-disabled);
+}
+
+.chat-input:focus {
+  outline: none;
+}
+
+.chat-input--scrollable {
+  padding-right: 32px;
+}
+
+.chat-input::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-input::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 6px;
+  margin-bottom: 14px;
+}
+
+.chat-input::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.chat-input::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+.chat-input-actions {
+  flex: 0 0 auto;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding-top: var(--space-sm);
+}
+
+/* Кнопка очистки чата: только иконка подсвечивается, без фона; три состояния — недоступен / доступен / hover */
+.chat-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  opacity: 0.6;
+  cursor: default;
+  flex-shrink: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.chat-clear:hover:not(:disabled) {
+  opacity: 0.75;
+  color: var(--color-text);
+}
+
+.chat-clear:disabled {
+  cursor: default;
+  opacity: 0.35;
+  color: var(--color-text-disabled);
+}
+
+.chat-clear:focus {
+  outline: none;
+}
+
+.chat-clear:focus-visible:not(:disabled) {
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+
+.chat-send {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0;
+  background: var(--color-bg-button);
+  color: var(--color-text-disabled);
+  border: none;
+  border-radius: 50%;
+  cursor: default;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.chat-send:not(:disabled) {
+  cursor: default;
+  background: #9a9a9a;
+  color: #1e1e1e;
+}
+
+.chat-send:hover:not(:disabled) {
+  background: #6e6e6e;
+  color: #1e1e1e;
+}
+
+.chat-send:active:not(:disabled) {
+  background: #5a5a5a;
+  color: #1e1e1e;
+}
+
+/* Кнопка «Вниз»: привязана к верхней границе пузыря ввода (.chat-input-wrapper), двигается вместе с ним при росте. */
+.chat-scroll-to-bottom-wrap {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  z-index: 10;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.chat-scroll-to-bottom-wrap.chat-scroll-to-bottom-wrap--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-scroll-to-bottom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  padding: 0;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  cursor: default;
+  flex-shrink: 0;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.chat-scroll-to-bottom-btn__icon {
+  color: var(--color-text-disabled);
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+}
+
+
+.chat-scroll-to-bottom-btn:focus {
+  outline: none;
+}
+
+.chat-scroll-to-bottom-btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}

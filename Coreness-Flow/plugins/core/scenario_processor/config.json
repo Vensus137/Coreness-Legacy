@@ -1,0 +1,271 @@
+{
+  "metadata": {
+    "name": "scenario_processor",
+    "description": "Движок обработки сценариев: триггеры, шаги, переходы, scheduled-сценарии"
+  },
+  "settings": {
+    "scenarios_path": {
+      "type": "string",
+      "default": "config/scenarios",
+      "description": "Путь к папке со сценариями относительно корня проекта"
+    },
+    "step_timeout": {
+      "type": "number",
+      "default": 60.0,
+      "description": "Таймаут выполнения одного шага в секундах (0 — без таймаута)"
+    },
+    "scenario_timeout": {
+      "type": "number",
+      "default": 300.0,
+      "description": "Таймаут выполнения всего сценария в секундах (0 — без таймаута)"
+    },
+    "scheduled_timeout": {
+      "type": "number",
+      "default": 300.0,
+      "description": "Таймаут выполнения scheduled-сценария в секундах (0 — без таймаута)"
+    }
+  },
+  "actions": {
+    "sync_scenarios": {
+      "description": "Синхронизация сценариев: загрузка из YAML + обновление кэша",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "force_reload": {
+              "type": "boolean",
+              "optional": true,
+              "description": "Принудительная перезагрузка всех сценариев (по умолчанию false)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "loaded_count": {
+              "type": "integer",
+              "description": "Количество загруженных сценариев"
+            }
+          }
+        }
+      }
+    },
+    "set_cache": {
+      "description": "Запись данных в _cache сценария (с учётом _namespace). Данные из params.cache мержатся в _cache",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "cache": {
+              "type": "object",
+              "optional": true,
+              "description": "Данные для записи в _cache (объект). При _namespace сохраняются в _cache[_namespace]"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success / error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } } },
+        "response_data": { "type": "object", "description": "Данные для мержа в _cache" }
+      }
+    },
+    "delete_cache": {
+      "description": "Удаление неймспейса или вложенного пути из _cache сценария для очистки контекста",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "namespace": {
+              "type": "string",
+              "optional": false,
+              "description": "Путь в _cache для удаления. Вложенность через точку (например tools или tools.ai_agent). Если указано _cache.tools — префикс _cache. игнорируется, удаление всегда только из кэша"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": { "type": "string", "description": "success / error" },
+        "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } } }
+      }
+    },
+    "process_scenario_event": {
+      "description": "Обработка события по сценариям (поиск и выполнение подходящих сценариев)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "event_type": {
+              "type": "string",
+              "optional": false,
+              "min_length": 1,
+              "description": "Тип события для поиска сценариев"
+            },
+            "event_text": {
+              "type": "string",
+              "optional": true,
+              "description": "Текст события (например текст сообщения чата); имя не конфликтует с полями шагов сценария при мерже во flat"
+            },
+            "app_chat_id": {
+              "type": "integer",
+              "optional": true,
+              "description": "ID чата приложения (event_source: app)"
+            },
+            "event_timestamp": {
+              "type": "number",
+              "optional": true,
+              "description": "Метка времени события: Unix timestamp (секунды от эпохи UTC, целое или float). Для отображения форматируют локально"
+            },
+            "_any": {
+              "type": "any",
+              "optional": true,
+              "description": "Допускаются любые другие поля в payload; рекомендуется плоская структура (flat) для плейсхолдеров и мержа в шагах сценария"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        }
+      }
+    },
+    "execute_scenario": {
+      "description": "Выполнение сценария или массива сценариев по имени",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "scenario": {
+              "type": "string|array",
+              "optional": false,
+              "description": "Название сценария (строка) или массив названий сценариев"
+            },
+            "return_cache": {
+              "type": "boolean",
+              "optional": true,
+              "description": "Возвращать ли _cache из выполненного сценария (по умолчанию true). Работает только для одиночных сценариев"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "scenario_result": {
+              "type": "string",
+              "description": "Результат выполнения сценария: success, error, abort, break"
+            }
+          }
+        }
+      }
+    },
+    "wait_for_action": {
+      "description": "Ожидание завершения асинхронного действия по action_id",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "action_id": {
+              "type": "string",
+              "optional": false,
+              "min_length": 1,
+              "description": "Уникальный ID асинхронного действия для ожидания"
+            },
+            "timeout": {
+              "type": "number",
+              "optional": true,
+              "min": 0.0,
+              "description": "Таймаут ожидания в секундах (опционально)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "Результат основного действия или ошибка ожидания (timeout/error)"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "description": "Данные ответа от основного действия (если успешно)"
+        }
+      }
+    }
+  },
+  "contributes": {
+    "settings": {
+      "label": "Сценарии",
+      "order": 10,
+      "fields": [
+        {"key": "step_timeout", "label": "Таймаут шага (сек, 0 — без таймаута)"},
+        {"key": "scenario_timeout", "label": "Таймаут сценария (сек, 0 — без таймаута)"},
+        {"key": "scheduled_timeout", "label": "Таймаут scheduled-сценария (сек, 0 — без таймаута)"}
+      ]
+    }
+  }
+}

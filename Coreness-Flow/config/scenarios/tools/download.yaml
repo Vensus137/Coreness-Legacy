@@ -1,0 +1,42 @@
+tool_download_and_save_to_rag:
+  step:
+
+    - action: "send_chat_message"
+      params:
+        text: "Загружаю файл: {_cache.tool.arguments.url}"
+        sender: "system"
+
+    - action: "download_and_extract"
+      params:
+        url: "{_cache.tool.arguments.url}"
+        keep_file: true
+        _namespace: "doc"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "system_error"
+
+    - action: "add_chunks"
+      params:
+        text: "{_cache.doc.file_text}"
+        metadata:
+          source_url: "{_cache.doc.file_metadata.source_url}"
+          file_type: "{_cache.doc.file_metadata.file_type}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "system_error"
+
+    - action: "set_cache"
+      params:
+        cache:
+          tool:
+            name: "tool_download_and_save_to_rag"
+            content: |
+              Файл: {_cache.tool.arguments.url}
+
+              Успешно загружено и сохранено в RAG
+
+    - action: "execute_scenario"
+      params:
+        scenario: "tool_add_result"

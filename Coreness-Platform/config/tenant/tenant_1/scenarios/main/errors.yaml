@@ -1,0 +1,19 @@
+# ============================================
+# Error Handling
+# Purpose: universal scenarios for error handling
+# ============================================
+
+# Universal error handling
+default_error:
+  description: "Universal system error handling"
+  
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.default_error|fallback:{_cache.translation.default|fallback:Unknown error}}
+        message_edit: false
+      transition:
+        - action_result: "any"
+          transition_action: "abort"
+

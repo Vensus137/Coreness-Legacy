@@ -1,0 +1,186 @@
+# Coreness — Мультитенантная платформа для автоматизации и AI-решений
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![PostgreSQL 16+](https://img.shields.io/badge/PostgreSQL-16+-316192.svg)](https://www.postgresql.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![Telegram Bot API](https://img.shields.io/badge/Telegram-Bot%20API-26A5E4.svg?logo=telegram&logoColor=white)](https://core.telegram.org/bots/api)
+
+
+<p align="left">
+  <a href="https://t.me/coreness"><img src="https://img.shields.io/badge/Группа-@Coreness-blue.svg" alt="Group"></a>
+  <a href="https://t.me/vensus137"><img src="https://img.shields.io/badge/Разработчик-@vensus137-blue.svg" alt="Developer"></a>
+</p>
+
+> 🌐 **Язык**: **Русский** | [English](README_EN.md)
+
+> 🌐 **Сайт:** [coreness.tech](https://coreness.tech/) · **Документация:** [docs.coreness.tech](https://docs.coreness.tech/)
+
+`Coreness` — это **event-driven** платформа для построения автоматизированных **workflow** через конфигурационные файлы. Вы описываете логику в YAML, платформа управляет выполнением, хранением данных и интеграциями.
+
+**Основные сценарии использования:**
+- **Разработка ботов** (Telegram и другие мессенджеры)
+- **Автоматизация** бизнес-процессов и уведомлений
+- **AI-ассистенты** и чат-боты с интеграцией LLM
+- **Scheduled задачи** и event-driven обработка
+
+---
+
+## ✨ Ключевые возможности
+
+### 🎯 Декларативная конфигурация
+Вся логика ботов описывается в **YAML-файлах**. Создавайте сложные сценарии, триггеры, условия и переходы без единой строки кода.
+
+```yaml
+start:
+  trigger:
+    - event_type: "message"
+      event_text: "/start"
+  
+  step:
+    - action: "send_message"
+      params:
+        text: "Привет, {first_name}! 👋"
+        inline:
+          - [{"📋 Меню": "menu"}, {"ℹ️ Помощь": "help"}]
+```
+
+### 🏢 Мультитенантность из коробки
+Один экземпляр платформы — множество независимых ботов с полной изоляцией данных:
+- **Row-Level Security** в PostgreSQL
+- Отдельные конфигурации, сценарии и Storage для каждого тенанта
+- GitHub-синхронизация конфигураций (Infrastructure as Code)
+- **Master Bot** — готовый бот для управления тенантами (аналог @BotFather)
+
+### 🤖 AI и RAG
+Встроенная интеграция с LLM-моделями и векторным поиском:
+- **Semantic search** через pgvector (PostgreSQL)
+- Поддержка OpenAI, Anthropic, Google, DeepSeek через агрегаторы (OpenRouter, Azure OpenAI)
+- **RAG-контекст** в сценариях — боты отвечают на основе базы знаний
+- Function calling и AI-агенты с инструментами
+
+### ⏰ Scheduled сценарии
+Автоматизация по расписанию через cron-выражения:
+- Ежедневные отчёты
+- Рассылки по расписанию
+- Периодические проверки и уведомления
+
+### 🔧 Гибкость и расширяемость
+- **Плагинная архитектура** — легко добавлять новый функционал
+- **Storage** — гибкое key-value хранилище для настроек тенантов
+- **Transitions** — управление потоком выполнения сценариев
+- **Placeholders** — динамические данные в любых параметрах
+
+---
+
+## 🚀 Что внутри
+
+**🎯 Конфигурация**
+- **YAML-сценарии** — вся логика описывается декларативно без кода
+- **Триггеры** — запуск по событиям, условиям или расписанию (cron)
+- **30+ Actions** — отправка сообщений, AI, HTTP, валидация, оплаты и др.
+- **Placeholders** — динамические данные с модификаторами
+
+**🏢 Архитектура**
+- **Мультитенантность** — изоляция данных через Row-Level Security
+- **Events** — событийная архитектура, низкая связность
+- **Storage** — key-value хранилище настроек и состояний
+- **Плагины** — расширяемость через утилиты и сервисы
+
+**🤖 AI и интеграции**
+- **AI Completion** — OpenAI, Anthropic, Google, DeepSeek через агрегаторы (OpenRouter, Azure OpenAI)
+- **Embeddings** — генерация векторных представлений текста через AI API
+- ⭐ **RAG (векторный поиск)** — сохранение, поиск и управление embeddings через pgvector
+- ⭐ **Webhooks** — Telegram и GitHub синхронизация
+
+**🚀 Развертывание**
+- **Docker** — готовые конфигурации (test + prod)
+- ...и многое другое
+
+<sup>⭐ Дополнительные плагины и их расширения. Для получения информации свяжитесь с [разработчиком](https://t.me/vensus137)</sup>
+
+---
+
+## 📖 Документация
+
+**Онлайн:** [docs.coreness.tech](https://docs.coreness.tech/) — полная документация в браузере.
+
+**В репозитории:** документация также доступна в папке **[`docs/`](docs/)** → **[Навигация по документации](docs/ru/README.md)**
+
+### 🚀 Быстрый старт
+- 📖 **[Практические примеры](docs/ru/getting-started/EXAMPLES_GUIDE.md)** — от простого бота до AI-агента с RAG
+- 🚀 **[Развертывание и деплой](docs/ru/getting-started/DEPLOYMENT.md)** — полное руководство по установке и обновлению
+- 🔧 **[Master Bot](docs/ru/getting-started/MASTER_BOT_GUIDE.md)** — система управления тенантами (аналог @BotFather)
+
+### 📋 Руководства
+- 📋 **[Руководство по сценариям](docs/ru/guides/SCENARIO_CONFIG_GUIDE.md)** — создание логики ботов
+- ⚙️ **[Конфигурация тенантов](docs/ru/guides/TENANT_CONFIG_GUIDE.md)** — настройка ботов
+- 💾 **[Хранилище атрибутов](docs/ru/guides/STORAGE_CONFIG_GUIDE.md)** — работа со Storage
+
+### 📚 Справочники
+- 🎯 **[Гайд по действиям](docs/ru/reference/ACTION_GUIDE.md)** — справочник всех доступных действий
+- 📡 **[События системы](docs/ru/reference/EVENT_GUIDE.md)** — доступные поля в плейсхолдерах
+- 🤖 **[Модели AI](docs/ru/reference/AI_MODELS_GUIDE.md)** — интеграция с LLM
+- 🔄 **[Changelog](docs/ru/CHANGELOG.md)** — история изменений и обновлений
+
+### 🔧 Расширенная документация
+- 🏗️ **[Архитектура платформы](docs/ru/advanced/ARCHITECTURE.md)** — детальное описание архитектуры и паттернов
+- 🔌 **[Разработка плагинов](docs/ru/advanced/PLUGINS_GUIDE.md)** — создание собственных сервисов и утилит
+- ⚙️ **[Настройка системы](docs/ru/advanced/SETTINGS_CONFIG_GUIDE.md)** — глобальные параметры платформы
+- 📝 **[Логирование](docs/ru/advanced/LOGGING_GUIDE.md)** — работа с логами и отладкой
+- 🧪 **[Тестирование](docs/ru/advanced/TESTING_GUIDE.md)** — подходы к тестированию платформы
+
+---
+
+## 🏗️ Архитектура
+
+```
+coreness/
+├── app/                 # Ядро приложения
+│   ├── application.py   # Точка входа и оркестратор
+│   └── di_container.py  # DI-контейнер
+│
+├── plugins/             # Плагинная система
+│   ├── utilities/       # Утилиты
+│   └── services/        # Сервисы
+│
+├── config/              # Конфигурации
+│   ├── settings.yaml    # Глобальные настройки
+│   └── tenant/          # Конфигурации тенантов
+│
+├── tools/               # Утилиты платформы
+├── scripts/             # Скрипты
+├── tests/               # Тесты
+└── docker/              # Docker конфигурация
+```
+
+**Принципы:**
+- **Event-Driven Architecture** — низкая связность через события
+- **Vertical Slice Architecture** — каждый сервис самодостаточен
+- **Dependency Injection** — управление зависимостями через DI-контейнер
+- **Multi-tenant** — изоляция данных через Row-Level Security
+
+---
+
+## 📞 Контакты
+
+**Сайт проекта:** [coreness.tech](https://coreness.tech/)  
+Актуальные контакты и информация
+
+**Telegram-канал проекта:** [t.me/coreness](https://t.me/coreness)  
+Новости, обновления и обсуждения
+
+**Связь с автором:** [@vensus137](https://t.me/vensus137)  
+Вопросы, предложения, сотрудничество
+
+---
+
+## 📄 Лицензия
+
+Распространяется под лицензией [MIT](LICENSE).
+
+---
+
+<p align="center">
+  <strong>Coreness</strong> — Create. Automate. Scale.
+</p>

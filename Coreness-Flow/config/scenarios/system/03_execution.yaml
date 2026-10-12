@@ -1,0 +1,99 @@
+########################################################
+# Роутинг выполнения функций
+########################################################
+system_execution:
+  step:
+    - action: "delete_cache"
+      params:
+        namespace: "execution"
+
+    - action: "validate"
+      params:
+        condition: "{_cache.routing_step.response_calls|exists} == True"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "system_execution_response"
+
+    - action: "validate"
+      params:
+        condition: "{_cache.routing_step.tool_calls|exists} == True"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "system_execution_tool"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "response_default"
+
+########################################################
+# Выполнение функций
+########################################################
+system_execution_tool:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          tool_index: 0
+          tool_length: "{_cache.routing_step.tool_calls|length|fallback:0}"
+        _namespace: "execution"
+
+    - action: "validate"
+      params:
+        condition: "{_cache.routing_step.tool_calls[{_cache.execution.tool_index}].name|fallback:} not is_null"
+      transition:
+        - action_result: "failed"
+          transition_action: "move_steps"
+          transition_value: 5
+        - action_result: "error"
+          transition_action: "move_steps"
+          transition_value: 5
+
+    - action: "set_cache"
+      params:
+        cache:
+          arguments: "{_cache.routing_step.tool_calls[{_cache.execution.tool_index}].arguments|fallback:}"
+        _namespace: "tool"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "{_cache.routing_step.tool_calls[{_cache.execution.tool_index}].name|fallback:}"
+
+    - action: "set_cache"
+      params:
+        cache:
+          tool_index: "tool_index"
+        _namespace: "execution"
+
+    - action: "validate"
+      params:
+        condition: "{_cache.execution.tool_index} < {_cache.execution.tool_length}"
+      transition:
+        - action_result: "success"
+          transition_action: "move_steps"
+          transition_value: -4
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_routing"
+
+########################################################
+# Выполнение функций ответа
+########################################################
+system_execution_response:
+  step:
+    # - action: "set_cache"
+    #   params:
+    #     cache:
+    #       name: "{_cache.routing_step.response_calls[0].name|fallback:}"
+    #       content: "{_cache.routing_step.response_calls[0].arguments.instructions|fallback:}"
+    #     _namespace: "tool"
+
+    # - action: "execute_scenario"
+    #   params:
+    #     scenario: "tool_add_result"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "{_cache.routing_step.response_calls[0].name|fallback:response_default}"

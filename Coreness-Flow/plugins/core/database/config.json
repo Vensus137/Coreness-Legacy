@@ -1,0 +1,246 @@
+{
+  "metadata": {
+    "name": "database",
+    "description": "Работа с SQLite: таблица storage (group_key + key -> value), возможность расширения другими таблицами"
+  },
+  "settings": {
+    "db_path": {
+      "type": "string",
+      "default": "app.db",
+      "description": "Путь к файлу SQLite относительно папки data"
+    },
+    "storage_limit": {
+      "type": "integer",
+      "default": 100,
+      "description": "Жёсткий лимит записей при любом чтении storage (get_storage). Нельзя превысить — защита от выгрузки больших объёмов в память"
+    },
+    "storage_config_dir": {
+      "type": "string",
+      "default": "config/storage",
+      "description": "Папка с YAML-конфигами storage для синхронизации (относительно корня проекта)"
+    }
+  },
+  "actions": {
+    "get_storage": {
+      "description": "Получить значение, группу или данные по паттернам из таблицы storage. Точные group_key/key имеют приоритет над паттернами",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "group_key": {
+              "type": "string",
+              "optional": true,
+              "description": "Ключ группы (точное совпадение, приоритет над group_key_pattern)"
+            },
+            "group_key_pattern": {
+              "type": "string",
+              "optional": true,
+              "description": "Паттерн LIKE для группы (%, _). Используется, если group_key не указан"
+            },
+            "key": {
+              "type": "string",
+              "optional": true,
+              "description": "Ключ значения (точное совпадение, приоритет над key_pattern). Вместе с group_key — одно значение"
+            },
+            "key_pattern": {
+              "type": "string",
+              "optional": true,
+              "description": "Паттерн LIKE для ключа (%, _). Используется, если key не указан (в рамках группы или при поиске)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "storage_values": {
+              "type": "any",
+              "replaceable": true,
+              "description": "Одно значение, группа {key: value} или все группы {group_key: {key: value}}. При отсутствии записи — None"
+            },
+            "storage_processed_at": {
+              "type": "any",
+              "description": "Дата последнего изменения записи (ISO 8601). Та же структура, что и storage_values, но значения — строки дат или null"
+            }
+          }
+        }
+      }
+    },
+    "set_storage": {
+      "description": "Записать значение или группу в таблицу storage",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "group_key": {
+              "type": "string",
+              "optional": true,
+              "description": "Ключ группы (для одной записи или группы)"
+            },
+            "key": {
+              "type": "string",
+              "optional": true,
+              "description": "Ключ значения (вместе с group_key и value — одна запись)"
+            },
+            "value": {
+              "type": "any",
+              "optional": true,
+              "description": "Значение (вместе с group_key и key)"
+            },
+            "values": {
+              "type": "object",
+              "optional": true,
+              "description": "Группа {key: value} при указанном group_key или полная структура {group_key: {key: value}}"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "storage_values": {
+              "type": "any",
+              "replaceable": true,
+              "description": "Записанные данные (одно значение, группа или полная структура)"
+            },
+            "storage_processed_at": {
+              "type": "any",
+              "description": "Дата последнего изменения (ISO 8601). Та же структура, что и storage_values"
+            }
+          }
+        }
+      }
+    },
+    "delete_storage": {
+      "description": "Удалить значение или всю группу из таблицы storage",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "group_key": {
+              "type": "string",
+              "optional": false,
+              "description": "Ключ группы (обязательно)"
+            },
+            "key": {
+              "type": "string",
+              "optional": true,
+              "description": "Ключ значения (если не указан — удаляется вся группа)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "deleted_count": {
+              "type": "integer",
+              "description": "Количество удалённых записей (0 если нечего было удалять)"
+            }
+          }
+        }
+      }
+    },
+    "sync_storage": {
+      "description": "Синхронизация storage из YAML (папка storage_config_dir): удалить группы из конфига в БД и загрузить данные из файлов",
+      "input": {
+        "payload": {
+          "type": "object",
+          "optional": true,
+          "description": "Параметры не требуются; вызов без payload — полная синхронизация"
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success / error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "synced_groups": {
+              "type": "integer",
+              "description": "Количество синхронизированных групп (0 если папка пуста или отсутствует)"
+            }
+          }
+        }
+      }
+    }
+  },
+  "contributes": {
+    "settings": {
+      "label": "База данных",
+      "order": 20,
+      "fields": [
+        {"key": "storage_limit", "label": "Лимит записей storage при чтении"}
+      ]
+    }
+  }
+}

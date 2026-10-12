@@ -1,0 +1,53 @@
+########################################################
+# Загрузка
+########################################################
+system_loading:
+  step:
+    - action: "send_chat_message"
+      params:
+        text: "Обрабатываю запрос..."
+        sender: "system"
+        effect:
+          type: "loading"
+          duration_sec: 60
+        _response_key: "loading_message_index"
+        _namespace: "loading"
+
+########################################################
+# Замена сообщения загрузки
+########################################################
+system_loading_replace:
+  step: 
+    - action: "validate"
+      params:
+        condition: "{_cache.loading.loading_message_index|exists} == True"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "system_loading_replace_message"
+
+system_loading_replace_message:
+  step:
+    - action: "send_chat_message"
+      params:
+        message_index: "{_cache.loading.loading_message_index}"
+        text: "{_cache.loading.loading_message_text}"
+        sender: "{_cache.loading.loading_message_sender|fallback:auto}"
+        meta: "{_cache.loading.loading_message_meta|fallback:}"
+
+########################################################
+# Замена сообщения загрузки по умолчанию
+########################################################
+system_loading_replace_default:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          loading_message_text: "Обработка завершена..."
+          loading_message_sender: "system"
+          loading_message_meta: {}
+        _namespace: "loading"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "system_loading_replace"

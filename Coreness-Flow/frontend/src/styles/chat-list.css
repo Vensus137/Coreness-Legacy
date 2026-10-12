@@ -1,0 +1,220 @@
+/**
+ * Список чатов (экран выбора). Рендер внутри WorkspaceLayout: скролл общий на воркспейс, рабочая область 800px.
+ */
+
+.chat-list-view {
+  display: flex;
+  flex-direction: column;
+  min-height: min-content;
+  width: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.chat-list-view-header {
+  /* Стили липкого заголовка — в .workspace-sticky-header (workspace.css). */
+}
+
+.chat-list-view-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.chat-list-view-back {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  cursor: default;
+  font-size: 0.875rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.chat-list-view-back:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-focus, var(--color-border));
+  color: var(--color-text);
+}
+
+.chat-list-view-loading {
+  padding: var(--space-lg);
+  color: var(--color-placeholder);
+}
+
+/* Контент без своего скролла — прокрутка на .workspace-content-frame (скраю воркспейса). */
+/* Отступ как у настроек — единый уровень под липким заголовком. */
+.chat-list-view-body {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: var(--workspace-sticky-body-padding);
+}
+
+/* Как в настройках: отступ у контейнера секции, заголовок без горизонтального padding. */
+.chat-list-view-section {
+  padding-left: var(--workspace-sticky-content-inline);
+  padding-right: var(--workspace-sticky-content-inline);
+}
+
+.chat-list-view-section-title {
+  margin: 0 0 var(--space-xs);
+  padding: var(--space-xs) 0 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--color-placeholder);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.chat-list-view-list {
+  list-style: none;
+  margin: 0 0 var(--space-md);
+  padding: 0;
+}
+
+.chat-list-view-body .chat-list-view-list:last-child {
+  margin-bottom: 0;
+}
+
+.chat-list-view-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  padding: 0 var(--workspace-sticky-row-inset);
+}
+
+.chat-list-view-item:hover {
+  background: var(--color-bg-hover);
+}
+
+.chat-list-view-item-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--workspace-sticky-row-gap);
+  text-align: left;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  cursor: default;
+  font-size: 0.9375rem;
+  line-height: 1.25;
+  min-width: 0;
+}
+
+.chat-list-view-item-main:hover {
+  color: var(--color-text);
+}
+
+.chat-list-view-item-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: inherit;
+}
+
+/* Ячейка «дата + иконки»: при наведении дата прозрачная, иконки появляются на её месте (без отдельного оверлея) */
+.chat-list-view-item-date-actions {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 4.5rem;
+  margin-left: var(--space-sm);
+  transition: opacity 0.15s ease;
+}
+
+.chat-list-view-item-date {
+  font-size: 0.8125rem;
+  color: var(--color-placeholder);
+  flex-shrink: 0;
+  transition: opacity 0.15s ease;
+}
+
+.chat-list-view-item:hover .chat-list-view-item-date {
+  opacity: 0;
+}
+
+.chat-list-view-item-actions {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.chat-list-view-item:hover .chat-list-view-item-actions {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-list-view-item .icon-btn-muted {
+  cursor: default;
+}
+
+.chat-list-view-item-action.icon-btn-muted svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+/* Inline-редактирование названия: те же отступы, что и у обычного пункта (без сдвига при переключении). */
+.chat-list-view-item-main--edit {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-md) var(--workspace-sticky-row-gap);
+  min-width: 0;
+  min-height: 0;
+  cursor: default;
+  line-height: 1.25;
+}
+
+.chat-list-view-item-title-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  margin: 0 calc(-1 * var(--workspace-sticky-row-gap)) 0 0;
+  border: none;
+  line-height: inherit;
+  background: linear-gradient(
+      to right,
+      transparent 0%,
+      var(--color-border) 28%,
+      var(--color-border) 72%,
+      transparent 100%
+    )
+    no-repeat bottom left / 100% 1px;
+  color: var(--color-text);
+  font-size: 0.9375rem;
+  font-family: inherit;
+  outline: none;
+  transition: opacity 0.15s ease;
+}
+
+.chat-list-view-item-title-input::placeholder {
+  color: var(--color-placeholder);
+}
+
+.chat-list-view-item-title-input:focus {
+  background-image: linear-gradient(
+    to right,
+    transparent 0%,
+    var(--color-border-focus, var(--color-border)) 28%,
+    var(--color-border-focus, var(--color-border)) 72%,
+    transparent 100%
+  );
+}

@@ -1,0 +1,327 @@
+translation_en:
+  tenant_config_menu: |
+    ⚙️ <b>Tenant configuration <code>{_cache.active_tenant_id}</code></b>
+    
+    Configuration of tenant attributes.
+  tenant_config_menu_inline:
+    - [{"🔑 Set AI token": "set_ai_token_input"}]
+    - [{"🔙 Back to tenant menu": "tenant"}]
+  set_ai_token_input: |
+    🔑 <b>Set AI token</b>
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+    
+    Enter the AI API token for installation.
+    
+    For token deletion, enter <code>null</code> or <code>none</code> (in any case).
+    
+    <b>Attention:</b> The token will be used for all AI requests of this tenant.
+  set_ai_token_input_inline:
+    - [{"❌ Cancel": "tenant_config_menu"}]
+  set_ai_token_handler_loading: |
+    ⏳ Installing AI token...
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+  set_ai_token_handler_success: |
+    ✅ AI token installed
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+    
+    The token will be used for all AI requests of this tenant.
+  set_ai_token_invalid_format: |
+    ❌ <b>Invalid AI token format</b>
+    
+    The token can only contain letters, numbers, hyphens and underscores.
+    
+    Example: <code>ak_example_token_123</code>
+    
+    Please enter the token in the correct format.
+  set_ai_token_invalid_format_inline:
+    - [{"🔙 Configuration menu": "tenant_config_menu"}]
+  set_ai_token_delete: |
+    ⏳ Deleting AI token...
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+  set_ai_token_delete_success: |
+    ✅ AI token deleted
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+    
+    The token was deleted from the tenant configuration.
+  set_ai_token_error: |
+    ❌ <b>AI token error</b>
+    
+    Please check:
+    • Tenant must exist
+    • Token must be correct
+    
+    User ID: <code>{user_id}</code>
+    Error log: <code>{last_error.message|fallback:Unknown error}</code>
+  set_ai_token_error_inline:
+    - [{"🔙 Configuration menu": "tenant_config_menu"}]
+  tenant_menu: |
+    🏠 <b>Tenant menu <code>{_cache.active_tenant_id}</code></b>
+    
+    Bot status: <code>{_cache.bot_status.is_active|equals:True|value:✅ Enabled|fallback:{_cache.bot_status.is_active|equals:False|value:❌ Disabled|fallback:❓ Unknown}}</code>
+    Working status: <code>{_cache.bot_status.is_working|equals:True|value:✅ Working|fallback:{_cache.bot_status.is_working|equals:False|value:❌ Not working|fallback:❓ Unknown}}</code>
+    
+    Update date: <code>{_cache.tenant_status.last_updated_at|format:datetime_full|fallback:❓ Unknown}</code>
+    {_cache.tenant_status.last_error|length|true|value:Last error: <code></code>}<code>{_cache.tenant_status.last_failed_at|format:datetime_full}</code>{_cache.tenant_status.last_failed_at|length|true|value: — }<code>{_cache.tenant_status.last_error|fallback:}</code>
+  tenant_menu_inline:
+    - [{"🏢 Tenant Storage": "tenant_storage_menu"}, {"👤 User Storage": "user_storage_menu"}]
+    - [{"⚙️ Configuration": "tenant_config_menu"}, {"🔑 Set bot token": "set_bot_token_input"}]
+    - [{"🔄 Sync tenant data": "sync_tenant_data"}, {"🔄 Update status": "tenant"}]
+    - [{"🔀 Change tenant": "tenant_not_selected"}]
+  tenant_selection: |
+    📋 <b>Tenant selection</b>
+    
+    Select the tenant from the list.
+  tenant_selection_inline:
+    - [{"🔙 Back to tenant menu": "tenant"}]
+  tenant_no_access: |
+    ℹ️ <b>No available tenants</b>
+    
+    You do not have any tenants assigned. Contact the system administrator to get access.
+  tenant_no_access_inline:
+    - [{"🔙 Back to start": "start"}]
+  tenant_access_denied: |
+    ❌ <b>Access denied</b>
+    
+    You do not have access to the selected tenant.
+    
+    Contact the system administrator to get access.
+  tenant_access_denied_inline:
+    - [{"🔙 Back to tenant list": "tenant_not_selected"}]
+  invalid_tenant_number: |
+    ⚠️ <b>Invalid tenant number</b>
+    
+    The selected tenant is not available or does not exist.
+    
+    Please try selecting a tenant again.
+  invalid_tenant_number_inline:
+    - [{"🔙 Back to tenant list": "tenant_not_selected"}]
+  sync_tenant_data_loading: |
+    ⏳ Synchronizing tenant data...
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+  sync_tenant_data_success: |
+    ✅ Tenant data synchronized
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+  set_bot_token_input: |
+    🔑 <b>Set bot token</b>
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+    
+    Enter the bot token for installation.
+    
+    For token deletion, enter <code>null</code> or <code>none</code> (in any case).
+    
+    <b>Attention:</b> The bot must be created through configuration synchronization before setting the token.
+  set_bot_token_input_inline:
+    - [{"❌ Cancel": "tenant"}]
+  set_bot_token_handler_loading: |
+    ⏳ Installing bot token...
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+  set_bot_token_handler_success: |
+    ✅ Bot token installed
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+    
+    The token will be checked automatically when the polling starts.
+  set_bot_token_invalid_format: |
+    ❌ <b>Invalid bot token format</b>
+    
+    The bot token must have the format: <code>number:string</code>
+    
+    Example: <code>123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>
+    
+    Please enter the token in the correct format.
+  set_bot_token_invalid_format_inline:
+    - [{"🔙 Back to tenant menu": "tenant"}]
+  set_bot_token_delete_loading: |
+    ⏳ Deleting bot token...
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+  set_bot_token_delete_success: |
+    ✅ Bot token deleted
+    
+    Tenant: <code>{_cache.active_tenant_id}</code>
+    
+    The token was deleted from the bot configuration. Polling stopped.
+  set_bot_token_error: |
+    ❌ <b>Bot token error</b>
+    
+    Please check:
+    • Bot must be created through configuration synchronization
+    • Token must be correct
+    
+    User ID: <code>{user_id}</code>
+    Error log: <code>{last_error.message|fallback:Unknown error}</code>
+  set_bot_token_error_inline:
+    - [{"🔙 Back to tenant menu": "tenant"}]
+
+translation_ru:
+  tenant_config_menu: |
+    ⚙️ <b>Конфигурация тенанта <code>{_cache.active_tenant_id}</code></b>
+    
+    Настройка атрибутов конфигурации тенанта.
+  tenant_config_menu_inline:
+    - [{"🔑 AI токен": "set_ai_token_input"}]
+    - [{"🔙 К меню тенанта": "tenant"}]
+  set_ai_token_input: |
+    🔑 <b>Установка AI токена</b>
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+    
+    Введите токен AI API для установки.
+    
+    Для удаления токена введите <code>null</code> или <code>none</code> (в любом регистре).
+    
+    <b>Внимание:</b> Токен будет использоваться для всех AI запросов этого тенанта.
+  set_ai_token_input_inline:
+    - [{"❌ Отмена": "tenant_config_menu"}]
+  set_ai_token_handler_loading: |
+    ⏳ Установка AI токена...
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+  set_ai_token_handler_success: |
+    ✅ AI токен установлен
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+    
+    Токен будет использоваться для всех AI запросов этого тенанта.
+  set_ai_token_invalid_format: |
+    ❌ <b>Неверный формат токена</b>
+    
+    Токен может содержать только буквы, цифры, дефисы и подчеркивания.
+    
+    Пример: <code>ak_example_token_123</code>
+    
+    Пожалуйста, введите токен в правильном формате.
+  set_ai_token_invalid_format_inline:
+    - [{"🔙 К меню конфигурации": "tenant_config_menu"}]
+  set_ai_token_delete: |
+    ⏳ Удаление AI токена...
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+  set_ai_token_delete_success: |
+    ✅ AI токен удален
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+    
+    Токен был удален из конфигурации тенанта.
+  set_ai_token_error: |
+    ❌ <b>Ошибка установки токена</b>
+    
+    Проверьте:
+    • Тенант должен существовать
+    • Токен должен быть корректным
+    
+    ID пользователя: <code>{user_id}</code>
+    Лог ошибки: <code>{last_error.message|fallback:Неизвестная ошибка}</code>
+  set_ai_token_error_inline:
+    - [{"🔙 К меню конфигурации": "tenant_config_menu"}]
+  tenant_menu: |
+    🏠 <b>Меню тенанта <code>{_cache.active_tenant_id}</code></b>
+    
+    Статус бота: <code>{_cache.bot_status.is_active|equals:True|value:✅ Включен|fallback:{_cache.bot_status.is_active|equals:False|value:❌ Выключен|fallback:❓ Неизвестно}}</code>
+    Статус работы: <code>{_cache.bot_status.is_working|equals:True|value:✅ Работает|fallback:{_cache.bot_status.is_working|equals:False|value:❌ Не работает|fallback:❓ Неизвестно}}</code>
+
+    Дата обновления: <code>{_cache.tenant_status.last_updated_at|format:datetime_full|fallback:❓ Неизвестно}</code>
+    {_cache.tenant_status.last_error|length|true|value:Последняя ошибка: <code></code>}<code>{_cache.tenant_status.last_failed_at|format:datetime_full}</code>{_cache.tenant_status.last_failed_at|length|true|value: — }<code>{_cache.tenant_status.last_error|fallback:}</code>
+  tenant_menu_inline:
+    - [{"🏢 Tenant Storage": "tenant_storage_menu"}, {"👤 User Storage": "user_storage_menu"}]
+    - [{"⚙️ Конфигурация": "tenant_config_menu"}, {"🔑 Установить токен": "set_bot_token_input"}]
+    - [{"🔄 Синхронизация": "sync_tenant_data"}, {"🔄 Обновить статус": "tenant"}]
+    - [{"🔀 Сменить тенант": "tenant_not_selected"}]
+  tenant_selection: |
+    📋 <b>Выбор тенанта</b>
+
+    Выберите доступный тенант из списка:
+  tenant_selection_inline:
+    - [{"🔙 К меню тенанта": "tenant"}]
+  tenant_no_access: |
+    ℹ️ <b>Нет доступных тенантов</b>
+    
+    У вас нет привязанных тенантов. Обратитесь к администратору системы для получения доступа.
+  tenant_no_access_inline:
+    - [{"🔙 Назад": "start"}]
+  tenant_access_denied: |
+    ❌ <b>Доступ ограничен</b>
+    
+    У вас нет доступа к выбранному тенанту.
+    
+    Обратитесь к администратору системы для получения доступа.
+  tenant_access_denied_inline:
+    - [{"🔙 К списку тенантов": "tenant_not_selected"}]
+  invalid_tenant_number: |
+    ⚠️ <b>Ошибка выбора тенанта</b>
+    
+    Выбранный тенант недоступен или не существует.
+    
+    Попробуйте выбрать тенант снова.
+  invalid_tenant_number_inline:
+    - [{"🔙 К списку тенантов": "tenant_not_selected"}]
+  sync_tenant_data_loading: |
+    ⏳ Синхронизация данных тенанта...
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+  sync_tenant_data_success: |
+    ✅ Данные тенанта синхронизированы
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+  set_bot_token_input: |
+    🔑 <b>Установка токена бота</b>
+          
+    Тенант: <code>{_cache.active_tenant_id}</code>
+          
+    Введите токен бота для установки.
+          
+    Для удаления токена введите <code>null</code> или <code>none</code> (в любом регистре).
+          
+    ⚠️ <b>Внимание:</b> Бот должен быть создан через синхронизацию конфигурации перед установкой токена.
+  set_bot_token_input_inline:
+    - [{"❌ Отмена": "tenant"}]
+  set_bot_token_handler_loading: |
+    ⏳ Установка токена бота...
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+  set_bot_token_handler_success: |
+    ✅ Токен бота установлен
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+    
+    Токен будет проверен автоматически при запуске пулинга.
+  set_bot_token_invalid_format: |
+    ❌ <b>Неверный формат токена</b>
+    
+    Токен бота должен иметь формат: <code>число:строка</code>
+    
+    Пример: <code>123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>
+    
+    Пожалуйста, введите токен в правильном формате.
+  set_bot_token_invalid_format_inline:
+    - [{"🔙 К меню тенанта": "tenant"}]
+  set_bot_token_delete_loading: |
+    ⏳ Удаление токена бота...
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+  set_bot_token_delete_success: |
+    ✅ Токен бота удален
+    
+    Тенант: <code>{_cache.active_tenant_id}</code>
+    
+    Токен был удален из конфигурации бота. Пулинг остановлен.
+  set_bot_token_error: |
+    ❌ <b>Ошибка установки токена</b>
+    
+    Проверьте:
+    • Бот должен быть создан через синхронизацию конфигурации
+    • Токен должен быть корректным
+    
+    ID пользователя: <code>{user_id}</code>
+    Лог ошибки: <code>{last_error.message|fallback:Неизвестная ошибка}</code>
+  set_bot_token_error_inline:
+    - [{"🔙 К меню тенанта": "tenant"}]

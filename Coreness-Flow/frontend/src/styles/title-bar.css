@@ -1,0 +1,180 @@
+/* Заголовок окна (перетаскивание, кнопки) */
+
+.app-header.title-bar {
+  background: var(--color-bg-title);
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  -webkit-app-region: drag;
+}
+
+.title-bar-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: var(--title-bar-height);
+}
+
+/* Нижний слой: зона под кнопку сворачивания (44px / ширина сайдбара), внутри — справка и др. */
+.title-bar-left-area {
+  display: flex;
+  align-items: center;
+  gap: var(--title-bar-icon-gap);
+  flex-shrink: 0;
+  width: 44px;
+  min-width: 44px;
+  padding-left: var(--icon-area-inset-left);
+  padding-right: var(--space-sm);
+  transition: width 0.11s ease-out, min-width 0.11s ease-out;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-left-area--open {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+}
+
+.title-bar-left-area .title-bar-btn svg {
+  width: var(--title-bar-icon-size) !important;
+  height: var(--title-bar-icon-size) !important;
+}
+
+/* Верхний слой: кнопка сворачивания поверх; фон заголовка — при сворачивании «закрывает» иконки сзади */
+.title-bar-collapse-layer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 44px;
+  min-width: 44px;
+  z-index: 2;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: var(--space-sm);
+  transition: width 0.11s ease-out, min-width 0.11s ease-out;
+}
+
+.title-bar-collapse-layer--open {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+}
+
+/* Шторка: справа от элемента с кнопкой — левый край шторки = правый край слоя с кнопкой; фикс 200px, фон заголовка, drag всегда; анимация в такт с закрытием панели */
+.title-bar-curtain {
+  position: absolute;
+  left: var(--sidebar-width);
+  top: 0;
+  height: 100%;
+  width: 200px;
+  background: var(--color-bg-title);
+  -webkit-app-region: drag;
+  transition: left 0.11s ease-out;
+}
+
+.title-bar--sidebar-closed .title-bar-curtain {
+  left: 44px;
+}
+
+.title-bar-collapse-layer .title-bar-btn {
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
+}
+
+/* Фон только на кнопке «раскрыть панель» (при закрытой панели), чтобы закрывала иконку сзади */
+.title-bar-collapse-layer:not(.title-bar-collapse-layer--open) .title-bar-btn {
+  background: var(--color-bg-title);
+}
+
+.title-bar-collapse-layer:not(.title-bar-collapse-layer--open) .title-bar-btn:hover {
+  background: var(--color-bg-tab-hover);
+}
+
+.title-bar-collapse-layer .title-bar-btn svg {
+  width: var(--title-bar-icon-size) !important;
+  height: var(--title-bar-icon-size) !important;
+}
+
+.title-bar-tabs {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+
+.title-bar-right {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  padding-right: 0;
+  gap: 0;
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-btn {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: inherit;
+  cursor: default;
+  padding: var(--space-xs);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-bar-btn:hover {
+  background: var(--color-bg-tab-hover);
+  color: var(--color-text);
+}
+
+/* Кнопка сворачивания/раскрытия: при наведении только подсветка, иконку не перекрашивать */
+.title-bar-collapse-layer .title-bar-btn:hover {
+  color: inherit;
+}
+
+.title-bar-btn-win {
+  width: 40px;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+  padding: 0;
+  flex: 0 0 auto;
+}
+
+/* Размер переопределяем поверх inline-стилей из Icons.jsx */
+.title-bar-btn-win svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.title-bar-btn-close:hover {
+  background: var(--color-close-hover);
+  color: var(--color-text-strong);
+}
+
+/* Кнопка «Обновить сценарии»: анимация загрузки и состояние успеха */
+.title-bar-btn-icon-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.title-bar-btn--loading .title-bar-btn-icon-wrap {
+  animation: title-bar-spin 0.8s linear infinite;
+}
+
+.title-bar-btn--success .title-bar-btn-icon-wrap {
+  color: var(--color-success);
+}
+
+@keyframes title-bar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -1,0 +1,514 @@
+# ============================================
+# Tenant Management
+# Purpose: selection, switching and management of tenants with owner binding
+# Uses User Storage to store active tenant
+# ============================================
+
+# ============================================
+# BLOCK 1: Tenant Main Menu
+# ============================================
+
+tenant:
+  description: "Universal tenant management scenario - access check and active tenant"
+  
+  trigger:
+    - event_type: "message"
+      event_text: "/tenant"
+    - event_type: "callback"
+      callback_data: "tenant"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Check if there is an active tenant
+    - action: "validate"
+      params:
+        condition: "{_cache.active_tenant_id|exists} == True and {_cache.active_tenant_id|fallback:0} > 0"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_menu"
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_not_selected"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+
+# Tenant menu (with message editing)
+# Message uses bot status from get_telegram_bot_status (is_active, is_working)
+tenant_menu:
+  description: "Display active tenant menu"
+
+  step:
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Get bot_id by tenant_id (for status)
+    - action: "get_bot_id_by_tenant_id"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        _response_key: "bot_id"
+    
+    # Load bot status (fills _cache.is_active, _cache.is_working for message text)
+    - action: "get_telegram_bot_status"
+      params:
+        bot_id: "{_cache.bot_id}"
+        _namespace: "bot_status"
+
+    - action: "get_tenant_status"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        _namespace: "tenant_status"
+    
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_menu|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_menu_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 2: Tenant Selection
+# ============================================
+
+# Tenant selection menu
+tenant_not_selected:
+  description: "Determine user type and display list of available tenants"
+
+  trigger:
+    - event_type: "callback"
+      callback_data: "tenant_not_selected"
+  
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Check if user is an administrator
+    - action: "validate"
+      params:
+        condition: "{_cache.user.admin} == True"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_select_all"
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_select_owner"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_select_owner"
+
+# Owner tenant selection menu (for regular users)
+tenant_select_owner:
+  description: "Display owner tenant list for selection"
+
+  step:
+    # Check if there are bound tenants
+    - action: "validate"
+      params:
+        condition: "{_cache.user.tenant_owner|exists} == True and {_cache.user.tenant_owner|length} > 0"
+      transition:
+        - action_result: "success"
+          transition_action: "continue"
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_no_access"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # Build dynamic keyboard from owner tenants
+    - action: "build_keyboard"
+      params:
+        items: "{_cache.user.tenant_owner}"
+        keyboard_type: "inline"
+        text_template: "Тенант $value$"
+        callback_template: "select_tenant_$value$"
+        buttons_per_row: 3
+
+    # Send message with dynamic keyboard
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_selection|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: 
+          - "{_cache.keyboard|expand}"
+          - "{_cache.translation.tenant_selection_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# All tenants selection menu (for system administrators)
+tenant_select_all:
+  description: "Display list of all tenants for selection (system + public)"
+
+  step:
+    # Get list of all tenants
+    - action: "get_tenants_list"
+      params: {}
+    
+    # Build dynamic keyboard from all tenants (system + public)
+    - action: "build_keyboard"
+      params:
+        items: "{_cache.tenant_ids}"
+        keyboard_type: "inline"
+        text_template: "Тенант $value$"
+        callback_template: "select_tenant_$value$"
+        buttons_per_row: 3
+    
+    # Send message with dynamic keyboard
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_selection|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: 
+          - "{_cache.keyboard|expand}"
+          - "{_cache.translation.tenant_selection_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# No available tenants notification
+tenant_no_access:
+  description: "Notification about absence of available tenants"
+
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_no_access|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_no_access_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 3: Tenant Selection Handling
+# ============================================
+
+# Tenant selection handling from dynamic keyboard
+tenant_select_handler:
+  description: "Tenant selection handling with access check and saving to User Storage"
+
+  trigger:
+    - event_type: "callback"
+      condition: '$callback_data ~ "select_tenant_"'
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Extract tenant ID from callback_data (format: select_tenant_105)
+    # Use placeholder to extract value with regex modifier
+    - action: "validate"
+      params:
+        condition: '{callback_data|regex:select_tenant_(\d+)|exists} == True'
+      transition:
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "invalid_tenant_number"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "invalid_tenant_number"
+    
+    # Check if user is an administrator
+    - action: "validate"
+      params:
+        condition: "{_cache.user.admin} == True"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_select_save"
+        - action_result: "failed"
+          transition_action: "continue"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+    
+    # For regular users check access to selected tenant
+    # Use placeholder to extract value with regex modifier
+    - action: "validate"
+      params:
+        condition: '{callback_data|regex:select_tenant_(\d+)} in {_cache.user.tenant_owner}'
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_select_save"
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_access_denied"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+
+# Save selected tenant to User Storage
+tenant_select_save:
+  description: "Save selected tenant to User Storage and navigate to menu"
+
+  step:
+    # Save active tenant to User Storage
+    - action: "set_user_storage"
+      params:
+        key: "active_tenant_id"
+        value: '{callback_data|regex:select_tenant_(\d+)}'
+    
+    # Navigate to tenant menu
+    - action: "execute_scenario"
+      params:
+        scenario: "tenant"
+
+# Tenant access denied
+tenant_access_denied:
+  description: "Notification about access denial to selected tenant"
+
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.tenant_access_denied|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.tenant_access_denied_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# Invalid tenant selection handling
+invalid_tenant_number:
+  description: "Notification about invalid tenant selection"
+  
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.invalid_tenant_number|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.invalid_tenant_number_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# ============================================
+# BLOCK 4: Synchronization and Update
+# ============================================
+
+# Full tenant synchronization
+sync_tenant_data:
+  description: "Full tenant synchronization (bot + scenarios + storage)"
+
+  trigger:
+    - event_type: "callback"
+      callback_data: "sync_tenant_data"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Send notification
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.sync_tenant_data_loading|fallback:{_cache.translation.default|fallback:Unknown error}}
+    
+    # Full tenant synchronization (pull from GitHub + sync all data)
+    - action: "sync_tenant"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "default_error"
+
+    # Successful completion
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.sync_tenant_data_success|fallback:{_cache.translation.default|fallback:Unknown error}}
+      transition:
+        - action_result: "any"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_menu"
+
+# ============================================
+# BLOCK 5: Bot Token Setup
+# ============================================
+
+# Bot token request
+set_bot_token_input:
+  description: "Request bot token for setup"
+
+  trigger:
+    - event_type: "callback"
+      callback_data: "set_bot_token_input"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Send message with instruction
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_input|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.set_bot_token_input_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+    
+    # Set input waiting state
+    - action: "set_user_state"
+      params:
+        state: "set_bot_token"
+        expires_in_seconds: 300
+
+# Token input handling
+set_bot_token_handler:
+  description: "Bot token input handling"
+
+  trigger:
+    - event_type: "message"
+      user_state: "set_bot_token"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Check that input is not a command
+    - action: "execute_scenario"
+      params:
+        scenario: "check_message"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Clear state
+    - action: "clear_user_state"
+    
+    # Check if input is null/none (for token deletion)
+    - action: "validate"
+      params:
+        condition: '{event_text|lower} == "null" or {event_text|lower} == "none"'
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_bot_token_delete"
+        - action_result: "failed"
+          transition_action: "continue"
+        - action_result: "error"
+          transition_action: "continue"
+    
+    # Token format validation (number:string)
+    - action: "validate"
+      params:
+        condition: '$event_text regex "^\\d+:[A-Za-z0-9_-]+$"'
+      transition:
+        - action_result: "success"
+          transition_action: "continue"
+        - action_result: "failed"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_bot_token_invalid_format"
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_bot_token_invalid_format"
+    
+    # Send notification about installation start
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_handler_loading|fallback:{_cache.translation.default|fallback:Unknown error}}
+    
+    # Set Telegram bot token
+    - action: "set_telegram_bot_token"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        bot_token: "{event_text}"
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_bot_token_error"
+
+    # Successful completion
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_handler_success|fallback:{_cache.translation.default|fallback:Unknown error}}
+        message_edit: "{_cache.last_message_id}"
+      transition:
+        - action_result: "any"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_menu"
+
+# Invalid token format error handling
+set_bot_token_invalid_format:
+  description: "Invalid token format error handling"
+
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_invalid_format|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.set_bot_token_invalid_format_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+
+# Token deletion (via null/none input)
+set_bot_token_delete:
+  description: "Bot token deletion via null/none input"
+
+  step:
+    - action: "execute_scenario"
+      params:
+        scenario: "default_check"
+    
+    # Get active tenant from User Storage
+    - action: "get_user_storage"
+      params:
+        key: "active_tenant_id"
+        _response_key: "active_tenant_id"
+    
+    # Send notification about deletion start
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_delete_loading|fallback:{_cache.translation.default|fallback:Unknown error}}
+    
+    # Delete bot token (pass null)
+    - action: "set_telegram_bot_token"
+      params:
+        tenant_id: "{_cache.active_tenant_id}"
+        bot_token: null
+      transition:
+        - action_result: "error"
+          transition_action: "jump_to_scenario"
+          transition_value: "set_bot_token_error"
+
+    # Successful completion
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_delete_success|fallback:{_cache.translation.default|fallback:Unknown error}}
+        message_edit: "{_cache.last_message_id}"
+      transition:
+        - action_result: "any"
+          transition_action: "jump_to_scenario"
+          transition_value: "tenant_menu"
+
+# Token setup error handling
+set_bot_token_error:
+  description: "Bot token setup error handling"
+
+  step:
+    - action: "send_message"
+      params:
+        text: |
+          {_cache.translation.set_bot_token_error|fallback:{_cache.translation.default|fallback:Unknown error}}
+        inline: "{_cache.translation.set_bot_token_error_inline|fallback:{_cache.translation.default_inline|fallback:}}"
+

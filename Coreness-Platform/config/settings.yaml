@@ -1,0 +1,36 @@
+# Global System Settings
+
+# === PLUGIN MANAGEMENT ===
+
+plugin_management:
+  # Service management (application startup foundation)
+  services:
+    default_enabled: true     # Services enabled by default
+    disabled_services: []
+    enabled_services: []
+  
+  # Utility management (fine-tuning of auxiliary components)
+  utilities:
+    default_enabled: true     # Utilities enabled by default (initialized only when needed)
+    disabled_utilities: []    # List of disabled utilities
+    enabled_utilities: []     # List of force-enabled utilities
+
+# === GLOBAL SETTINGS ===
+
+global:
+  file_base_path: "resources"           # Base directory for all files
+  backup_dir: "data/backups"            # Base directory for all database backups
+  tenants_config_path: "config/tenant"  # Path to tenant configurations
+  max_system_tenant_id: 99              # Maximum system tenant ID (100+ = public)
+  
+  # Graceful shutdown settings
+  shutdown:
+    di_container_timeout: 5.0      # Timeout for DI container shutdown (all plugins)
+    plugin_timeout: 3.0             # Standard timeout for each plugin shutdown
+    background_tasks_timeout: 2.0   # Timeout for application background tasks completion
+
+# === SERVICE SETTINGS ===
+
+logger:
+  file_enabled: true
+  console_enabled: true

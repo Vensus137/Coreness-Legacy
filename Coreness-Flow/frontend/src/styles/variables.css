@@ -1,0 +1,90 @@
+/* Общая тема (Design System). Один источник цветов и размеров. */
+
+:root {
+  /* Фон */
+  --color-bg: #1e1e1e;
+  --color-bg-panel: #252525;
+  --color-bg-card: #2d2d2d;
+  --color-bg-hover: #2f2f2f;
+  --color-bg-hover-strong: #353535;
+  --color-bg-tab-hover: #404040;
+  --color-bg-title: #363636;
+  --color-bg-input: #2d2d2d;
+  --color-bg-button: #404040;
+  --color-bg-button-hover: #4d4d4d;
+  --color-bg-button-active: #353535;
+
+  /* Границы */
+  --color-border: #3a3a3a;
+  --color-border-input: #3d3d3d;
+  --color-border-focus: #4d4d4d;
+
+  /* Текст */
+  --color-text: #e0e0e0;
+  --color-text-strong: #ffffff;
+  --color-text-secondary: #9e9e9e;
+  --color-text-muted: #b0b0b0;
+  --color-text-system: #7e8590;
+  --color-text-tab-active: #c4c4c4;
+  --color-text-disabled: #6e6e6e;
+  --color-placeholder: #6b7280;
+
+  /* Тултип: чуть приглушённее основного фона и текста */
+  --color-tooltip-bg: #252525;
+  --color-tooltip-text: #c8c8c8;
+
+  /* Семантика */
+  --color-accent: #0066ff;
+  --color-close-hover: #c42b1c;
+  --color-error-bg: #7f1d1d;
+  --color-error-text: #fecaca;
+  --color-success: #8a9e8a;
+
+  /* Отступы и скругления */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-pill: 20px;
+  --radius-bubble: 12px;
+
+  /* Блок кода в чате (светлее, без рамки) */
+  --color-bg-code: #252526;
+  --color-bg-code-lang-badge: #2D2D2D;
+  --color-code-lang: var(--color-text-secondary);
+
+  /* Шрифт интерфейса (как в index.css) */
+  --font-family-ui: 'Inter', 'Segoe UI', system-ui, sans-serif;
+
+  /* Иконки: общий размер и отступ от левого края (сайдбар и заголовок) */
+  --icon-size: 20px;
+  --icon-area-inset-left: 8px;
+  /* Размер иконок в заголовке (справка и т.д.); не влияет на позицию кнопки сворачивания */
+  --title-bar-icon-size: var(--icon-size);
+  /* Зазор между иконками в левой зоне заголовка (справка, обновление сценариев) — единый с сайдбаром */
+  --title-bar-icon-gap: var(--space-sm);
+
+  /* Layout */
+  --sidebar-width: 220px;
+  --title-bar-height: 40px;
+  /* Строка заголовка: отступ сверху и высота блока (сайдбар и вкладки с липким заголовком — вровень). */
+  --header-row-offset-top: var(--space-md);
+  --header-row-height: 52px;
+  /* Отступ контента под липким заголовком (настройки, история чатов) — единый уровень. */
+  --workspace-sticky-body-padding: var(--space-lg);
+  /* Доп. горизонтальный отступ текста в теле ( = row-inset + row-gap, чтобы текст не впритык к выделению). */
+  --workspace-sticky-content-inline: calc(var(--workspace-sticky-row-inset) + var(--workspace-sticky-row-gap));
+  /* Отступ ряда от краёв (история чатов: выделение не впритык к краям). */
+  --workspace-sticky-row-inset: var(--space-sm);
+  /* Зазор между текстом и краем выделения (внутри подсветки, симметрично). */
+  --workspace-sticky-row-gap: 2px;
+  /* Ширина рабочей области контента (чат, список чатов, настройки и т.п.) */
+  --workspace-content-max-width: 800px;
+  --chat-content-max-width: var(--workspace-content-max-width);
+  /* Высота краевой тени воркспейса (верх и низ симметрично) */
+  --workspace-edge-fade-height: 28px;
+}

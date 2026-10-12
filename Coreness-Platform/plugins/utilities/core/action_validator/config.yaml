@@ -1,0 +1,99 @@
+name: "action_validator"
+description: "Утилита для валидации входных данных действий по схемам из config.yaml"
+description_en: "Utility for validating action input data against config.yaml schemas"
+singleton: true
+
+dependencies:
+  - "logger"
+  - "settings_manager"
+
+methods:
+  validate_action_input:
+    description: "Валидация входных данных действия по схеме из config.yaml"
+    description_en: "Validate action input against config.yaml schema"
+    input:
+      service_name:
+        type: string
+        description: "Имя сервиса (например, 'ai_service')"
+        description_en: "Service name (e.g. 'ai_service')"
+      action_name:
+        type: string
+        description: "Имя действия (например, 'completion')"
+        description_en: "Action name (e.g. 'completion')"
+      data:
+        type: object
+        description: "Данные для валидации"
+        description_en: "Data to validate"
+    output:
+      result:
+        type: string
+        description: "Результат: success или error"
+        description_en: "Result: success or error"
+      error:
+        type: object
+        optional: true
+        description: "Структура ошибки"
+        description_en: "Error structure"
+        properties:
+          code:
+            type: string
+            description: "Код ошибки"
+            description_en: "Error code"
+          message:
+            type: string
+            description: "Сообщение об ошибке"
+            description_en: "Error message"
+          details:
+            type: array
+            optional: true
+            description: "Детали ошибки (например, ошибки валидации полей)"
+            description_en: "Error details (e.g. field validation errors)"
+      validated_data:
+        type: object
+        optional: true
+        description: "Валидированные и преобразованные данные (только при result=success). Содержит исходные данные с преобразованными типами для полей из схемы"
+        description_en: "Validated and coerced data (when result=success). Original data with schema type coercion"
+    details: |
+      **Поддерживаемые параметры в схемах валидации (input.data.properties):**
+      
+      - `type`: тип данных (`string`, `integer`, `float`, `boolean`, `array`, `object`, или union через `|`, например `"string|None"`, `"integer|array"`)
+      - `optional`: обязательность поля (`true`/`false`, по умолчанию `false` = обязательное)
+      - `description`: описание поля
+      - `min`: минимальное значение (для чисел)
+      - `max`: максимальное значение (для чисел)
+      - `min_length`: минимальная длина строки
+      - `max_length`: максимальная длина строки
+      - `pattern`: регулярное выражение для валидации строки
+      - `enum`: массив допустимых значений
+      - `items`: конфигурация элементов массива (для `type: array`)
+        - `type`: тип элементов массива
+        - `properties`: схема для вложенных объектов (для массивов объектов)
+      
+      **Примеры:**
+      - ✅ `type: string, optional: false, min_length: 1, max_length: 100`
+      - ✅ `type: integer, optional: true, min: 1, max: 100000`
+      - ✅ `type: float, optional: true, min: 0.0, max: 2.0`
+      - ✅ `type: string, optional: true, enum: ["json_object", "json_schema"]`
+      - ✅ `type: "string|None", optional: false` (обязательное поле, но может быть None)
+      - ✅ `type: "string|None", optional: true` (опциональное поле, может отсутствовать или быть None)
+      - ✅ `type: array, items: {type: object, properties: {id: {type: integer}, name: {type: string}}}`
+  
+  invalidate_cache:
+    description: "Инвалидация кэша моделей валидации"
+    description_en: "Invalidate validation schema cache"
+    input:
+      service_name:
+        type: string
+        optional: true
+        description: "Имя сервиса (опционально, если не указано - очищается весь кэш)"
+        description_en: "Service name (optional; if not set - clear full cache)"
+      action_name:
+        type: string
+        optional: true
+        description: "Имя действия (опционально, требуется вместе с service_name)"
+        description_en: "Action name (optional; required together with service_name)"
+    output:
+      type: void
+      description: "Нет возвращаемого значения"
+      description_en: "No return value"
+

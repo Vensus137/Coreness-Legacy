@@ -1,0 +1,258 @@
+/* Модальное окно: оверлей и панель в стиле темы */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: var(--space-lg);
+}
+
+.modal-panel {
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100vh - 2 * var(--space-lg));
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-bubble);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.modal-panel--wide {
+  max-width: 640px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-strong);
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.modal-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: default;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modal-copy:hover {
+  background: var(--color-bg-hover-strong);
+  color: var(--color-text-strong);
+}
+
+.modal-copy:focus {
+  outline: none;
+}
+
+.modal-copy:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+
+@keyframes modal-copy-feedback-in {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* В состоянии «Скопировано» — уведомление: не реагирует на hover/focus, мягкое появление */
+.modal-copy--done {
+  color: var(--color-success);
+  pointer-events: none;
+  outline: none;
+  background: transparent;
+  box-shadow: none;
+  transition: color 0.2s ease-out;
+}
+
+.modal-copy--done svg {
+  animation: modal-copy-feedback-in 0.2s ease-out;
+}
+
+.modal-copy--done:hover,
+.modal-copy--done:focus,
+.modal-copy--done:focus-visible {
+  background: transparent;
+  color: var(--color-success);
+  box-shadow: none;
+  outline: none;
+}
+
+.modal-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: default;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modal-close:hover {
+  background: var(--color-bg-hover-strong);
+  color: var(--color-text-strong);
+}
+
+.modal-close:focus {
+  outline: none;
+}
+
+.modal-close:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-border-focus);
+}
+
+.modal-body {
+  padding: var(--space-lg);
+  overflow-y: auto;
+  color: var(--color-text);
+  font-size: 14px;
+  line-height: 1.5;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.modal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-disabled);
+}
+
+/* Кнопки внизу модалки (подтверждение, отмена и т.п.) */
+.modal-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  margin-top: var(--space-lg);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--color-border);
+}
+
+.modal-actions button {
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-button);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: default;
+  transition: background 0.15s, color 0.15s;
+}
+
+.modal-actions button:hover {
+  background: var(--color-bg-button-hover);
+  color: var(--color-text-strong);
+}
+
+.modal-actions button.modal-action--danger {
+  border-color: transparent;
+}
+
+.modal-actions button.modal-action--danger:hover {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+  border-color: transparent;
+}
+
+.modal-actions button:focus {
+  outline: none;
+}
+
+.modal-actions button:focus-visible {
+  box-shadow: 0 0 0 1px var(--color-border-focus);
+}
+
+/* Вариант для ошибок (заготовка на будущее) */
+.modal-overlay--error .modal-panel {
+  border-color: var(--color-error-text);
+}
+
+.modal-overlay--error .modal-header {
+  border-bottom-color: rgba(254, 202, 202, 0.3);
+}
+
+/* Контент «О приложении» */
+.about-content {
+  margin: 0;
+}
+
+.about-loading,
+.about-unavailable {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.about-list {
+  margin: 0;
+  display: grid;
+  gap: var(--space-sm) var(--space-lg);
+  grid-template-columns: 1fr 1fr;
+}
+
+.about-list dt {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.about-list dd {
+  margin: 0;
+}
+
+.about-link {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+.about-link:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,36 @@
+########################################################
+# Добавление результата функции в кэш
+########################################################
+tool_add_result:
+  step:
+    - action: "validate"
+      params:
+        condition: "{_cache.ai_agent.tool_results|exists} == True"
+      transition:
+        - action_result: "success"
+          transition_action: "jump_to_scenario"
+          transition_value: "tool_add_result_exists"
+
+    - action: "execute_scenario"
+      params:
+        scenario: "tool_add_result_not_exists"
+
+########################################################
+# Добавление результата функции в кэш
+########################################################
+tool_add_result_not_exists:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          tool_results:
+            - {"name": "{_cache.tool.name}", "content": "{_cache.tool.content}", "timestamp": "{now|format:timestamp}"}
+        _namespace: "ai_agent"
+
+tool_add_result_exists:
+  step:
+    - action: "set_cache"
+      params:
+        cache:
+          tool_results: "[{_cache.ai_agent.tool_results|expand}, {name: {_cache.tool.name}, content: {_cache.tool.content}, timestamp: {now|format:timestamp}}]"
+        _namespace: "ai_agent"

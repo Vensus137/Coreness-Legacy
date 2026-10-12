@@ -1,0 +1,286 @@
+{
+  "metadata": {
+    "name": "ai_service",
+    "description": "Сервис запросов к LLM"
+  },
+  "settings": {
+    "aggregators": {
+      "type": "array",
+      "default": [
+        {
+          "id": "polza_ai",
+          "label": "Polza.AI",
+          "url": "https://api.polza.ai/v1",
+          "default_model": "google/gemini-2.5-flash"
+        },
+        {
+          "id": "openrouter",
+          "label": "OpenRouter",
+          "url": "https://openrouter.ai/api/v1",
+          "default_model": "openai/gpt-4o-mini"
+        },
+        {
+          "id": "custom",
+          "label": "Custom (OpenAI-совместимый)",
+          "url": "",
+          "default_model": ""
+        }
+      ],
+      "description": "Доступные агрегаторы (список с дефолтными настройками)"
+    },
+    "profiles": {
+      "type": "string",
+      "default": "[]",
+      "description": "Профили агрегаторов (JSON-массив)"
+    },
+    "active_profile_id": {
+      "type": "string",
+      "default": "",
+      "description": "ID активного профиля"
+    }
+  },
+  "actions": {
+    "completion": {
+      "description": "Комплишн через агрегатор (chat completions). Поддерживает историю сообщений, RAG-контекст и tool calling.",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "prompt": {
+              "type": "string",
+              "optional": false,
+              "description": "Текст запроса пользователя (текущее сообщение)"
+            },
+            "system_prompt": {
+              "type": "string",
+              "optional": true,
+              "description": "Системный промпт (инструкции и роль ассистента). Добавляется первым сообщением с role=system."
+            },
+            "context": {
+              "type": "string",
+              "optional": true,
+              "description": "Кастомный контекст сценария (например текущая дата). Добавляется в user-сообщение после RAG и tool_results, непосредственно перед prompt."
+            },
+            "messages": {
+              "type": "array",
+              "optional": true,
+              "description": "История сообщений чата. Каждый объект: { sender, text } или { role, content }. sender: user→user, assistant→assistant, system/auto→user. Добавляется между system_prompt и итоговым user-сообщением.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "sender": { "type": "string", "description": "Отправитель: user, assistant, system, auto" },
+                  "text": { "type": "string", "description": "Текст сообщения" }
+                }
+              }
+            },
+            "chunks": {
+              "type": "array",
+              "optional": true,
+              "description": "RAG-чанки из search_chunks. Оборачиваются в <context>...</context> и добавляются в итоговое user-сообщение перед prompt.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "text": { "type": "string", "description": "Текст чанка" }
+                }
+              }
+            },
+            "model": {
+              "type": "string",
+              "optional": true,
+              "description": "Модель (по умолчанию из активного профиля)"
+            },
+            "max_tokens": {
+              "type": "integer",
+              "optional": true,
+              "description": "Максимум токенов ответа"
+            },
+            "temperature": {
+              "type": "float",
+              "optional": true,
+              "description": "Температура генерации"
+            },
+            "json_mode": {
+              "type": "string",
+              "optional": true,
+              "enum": [
+                "json_object",
+                "json_schema"
+              ],
+              "description": "Режим JSON: json_object или json_schema"
+            },
+            "json_schema": {
+              "type": "object",
+              "optional": true,
+              "description": "JSON-схема при json_mode=json_schema"
+            },
+            "tools": {
+              "type": "array",
+              "optional": true,
+              "description": "Определения инструментов (первый ход). Формат OpenAI: [{ type: 'function', function: { name, description, parameters } }]."
+            },
+            "tool_choice": {
+              "type": "string",
+              "optional": true,
+              "description": "Выбор инструмента: none | auto | required | { type: 'function', function: { name } }"
+            },
+            "tool_results": {
+              "type": "array",
+              "optional": true,
+              "description": "Результаты выполнения сценариев-функций. Добавляются как блок <tool_results> в user-сообщение после RAG-чанков. Сортируются по timestamp (старый→новый), новые оказываются ближе к prompt = в фокусе модели.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "Имя функции/сценария — используется как метка блока в контексте" },
+                  "content": { "type": "string", "description": "Результат (строка или JSON-строка для сложных данных)" },
+                  "timestamp": { "type": "number", "optional": true, "description": "Unix timestamp начала выполнения для сортировки. Без него — сохраняется порядок массива." }
+                }
+              }
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success или error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": { "type": "string", "description": "Код ошибки" },
+            "message": { "type": "string", "description": "Сообщение об ошибке" }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "response_completion": {
+              "type": "string",
+              "replaceable": true,
+              "description": "Текст ответа модели"
+            },
+            "response_meta": {
+              "type": "object",
+              "description": "Метаинформация об ответе — модель, токены. Передаётся в send_chat_message для хранения в сообщении и отображения в UI.",
+              "properties": {
+                "model": { "type": "string", "description": "Использованная модель" },
+                "prompt_tokens": { "type": "integer", "description": "Токены на вход" },
+                "completion_tokens": { "type": "integer", "description": "Токены ответа" },
+                "total_tokens": { "type": "integer", "description": "Всего токенов" }
+              }
+            },
+            "response_dict": {
+              "type": "object",
+              "optional": true,
+              "description": "Распарсенный JSON при json_mode"
+            },
+            "tool_calls": {
+              "type": "array",
+              "optional": true,
+              "description": "Вызовы обычных функций. Отсутствует, если вызовов нет.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "Имя функции (snake_case)" },
+                  "arguments": { "type": "object", "description": "Параметры вызова, уже распарсенный объект" }
+                }
+              }
+            },
+            "response_calls": {
+              "type": "array",
+              "optional": true,
+              "description": "Вызовы response-тулзов (имя начинается с response_). Отсутствует, если вызовов нет.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "description": "Имя response-тулза" },
+                  "arguments": { "type": "object", "description": "Параметры вызова, уже распарсенный объект" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "get_aggregators": {
+      "description": "Получить список доступных агрегаторов из конфига плагина",
+      "input": { "payload": { "type": "object", "properties": {} } },
+      "output": {
+        "result": { "type": "string" },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "aggregators": { "type": "array", "description": "Список конфигов агрегаторов" }
+          }
+        }
+      }
+    },
+    "get_models": {
+      "description": "Получить список доступных моделей агрегатора",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "base_url": {
+              "type": "string",
+              "description": "URL агрегатора (нормализуется автоматически)"
+            },
+            "api_key": {
+              "type": "string",
+              "optional": true,
+              "description": "API-ключ агрегатора (опционально — некоторые эндпоинты публичны)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success или error"
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "models": {
+              "type": "array",
+              "description": "Список ID доступных моделей"
+            }
+          }
+        }
+      }
+    },
+    "validate_token": {
+      "description": "Проверить валидность API-ключа (запрос списка моделей)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "base_url": {
+              "type": "string",
+              "description": "URL агрегатора"
+            },
+            "api_key": {
+              "type": "string",
+              "description": "API-ключ для проверки"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success или error"
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "models_count": {
+              "type": "integer",
+              "description": "Количество доступных моделей"
+            }
+          }
+        }
+      }
+    }
+  }
+}

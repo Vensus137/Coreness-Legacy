@@ -1,0 +1,46 @@
+# Тестовый сценарий для проверки асинхронных действий с LLM и анимации загрузки
+
+test_async_ai:
+  description: "Тест асинхронного запроса к LLM с анимацией загрузки из storage"
+  
+  trigger:
+    - event_type: "message"
+      event_source: "app"
+      event_text: "/test_async"
+
+  step:
+    # Шаг 0: Запускаем AI запрос асинхронно
+    - action: "completion"
+      async: true
+      action_id: "ai_req_1"
+      params:
+        prompt: "Расскажи коротко (2-3 предложения) про асинхронное программирование"
+        system_prompt: |
+          Ты полезный AI помощник.
+          Отвечай на русском языке кратко и лаконично.
+        model: "deepseek/deepseek-v3.2"
+        max_tokens: 200
+        temperature: 0.7
+
+    - action: "send_chat_message"
+      params:
+        text: "Обрабатываю запрос..."
+        sender: "system"
+        effect:
+          type: "loading"
+          duration_sec: 60
+        _response_key: "loading_message_index"
+
+    - action: "wait_for_action"
+      params:
+        action_id: "ai_req_1"
+
+    - action: "send_chat_message"
+      params:
+        message_index: "{_cache.loading_message_index}"
+        text: |
+          🤖 Ответ от AI:
+
+          {_cache.response_completion|fallback:Ошибка обработки}
+        sender: "assistant"
+        meta: "{_cache.response_meta}"

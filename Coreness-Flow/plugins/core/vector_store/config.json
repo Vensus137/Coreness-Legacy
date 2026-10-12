@@ -1,0 +1,370 @@
+{
+  "metadata": {
+    "name": "vector_store",
+    "description": "Локальный RAG с BGE-M3 ONNX INT8 и Qdrant: индексация и семантический поиск с гибридным поиском (dense + learned sparse + RRF)"
+  },
+  "settings": {
+    "db_path": {
+      "type": "string",
+      "default": "qdrant_db",
+      "description": "Путь к БД Qdrant (embedded режим) относительно папки data"
+    },
+    "collection_name": {
+      "type": "string",
+      "default": "documents",
+      "description": "Имя коллекции в Qdrant для хранения чанков"
+    },
+    "model_path": {
+      "type": "string",
+      "default": "models/bge-m3-onnx-int8",
+      "description": "Путь к ONNX модели BGE-M3 INT8 (в дистрибутиве)"
+    },
+    "embedding_batch_size": {
+      "type": "integer",
+      "default": 4,
+      "description": "Размер батча для ONNX inference (внутренний батчинг). Больше значение = быстрее, но больше пиковое потребление памяти"
+    },
+    "onnx_num_threads": {
+      "type": "integer",
+      "default": 4,
+      "description": "Количество потоков CPU для ONNX Runtime. Рекомендуется 4-8 для оптимального баланса скорости и памяти"
+    },
+    "max_chunks_per_batch": {
+      "type": "integer",
+      "default": 8,
+      "description": "Максимум чанков за один вызов эмбеддингов при индексации. Меньше значение = меньше пик памяти; больше = меньше вызовов, быстрее при больших документах"
+    },
+    "chunk_size": {
+      "type": "integer",
+      "default": 512,
+      "description": "Целевой размер чанка в токенах (базовый). Для таблиц/кода/списков применяются адаптивные мультипликаторы (1.2-1.3x)"
+    },
+    "chunk_overlap": {
+      "type": "integer",
+      "default": 100,
+      "description": "Перекрытие между чанками в токенах (~20% от chunk_size для сохранения контекста между чанками)"
+    },
+    "min_chunk_size": {
+      "type": "integer",
+      "default": 50,
+      "description": "Минимальный размер чанка в токенах (чанки меньше отбрасываются как нерелевантные)"
+    },
+    "default_top_k": {
+      "type": "integer",
+      "default": 10,
+      "description": "Количество результатов поиска по умолчанию"
+    },
+    "score_threshold": {
+      "type": "number",
+      "default": 0.7,
+      "description": "Минимальный порог релевантности для фильтрации результатов (0.0-1.0, гибридный score после RRF fusion)"
+    }
+  },
+  "actions": {
+    "add_chunks": {
+      "description": "Добавление текста с автоматическим разбиением на чанки и генерацией эмбеддингов",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "text": {
+              "type": "string",
+              "optional": false,
+              "description": "Текст для индексации (будет очищен и разбит на чанки)"
+            },
+            "collection": {
+              "type": "string",
+              "optional": true,
+              "description": "Имя коллекции Qdrant. Если не указано — используется коллекция по умолчанию из настроек. Коллекция создаётся автоматически при первом обращении."
+            },
+            "document_id": {
+              "type": "string",
+              "optional": true,
+              "description": "Уникальный ID документа (если не указан, генерируется автоматически из хеша текста)"
+            },
+            "metadata": {
+              "type": "object",
+              "optional": true,
+              "description": "Метаданные для всех чанков документа (chat_id, timestamp, role, type и др.)"
+            },
+            "chunk_size": {
+              "type": "integer",
+              "optional": true,
+              "min": 100,
+              "max": 2048,
+              "description": "Размер чанка в токенах (по умолчанию из настроек: 512)"
+            },
+            "chunk_overlap": {
+              "type": "integer",
+              "optional": true,
+              "min": 0,
+              "max": 512,
+              "description": "Перекрытие между чанками в токенах (по умолчанию из настроек: 100)"
+            },
+            "min_chunk_size": {
+              "type": "integer",
+              "optional": true,
+              "min": 10,
+              "max": 512,
+              "description": "Минимальный размер чанка в токенах (по умолчанию из настроек: 50)"
+            },
+            "replace_document": {
+              "type": "boolean",
+              "optional": true,
+              "description": "Если true, перед добавлением чанков удаляются существующие чанки документа с данным document_id (по умолчанию false)"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success или error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "document_id": {
+              "type": "string",
+              "replaceable": true,
+              "description": "ID документа (переданный или сгенерированный)"
+            },
+            "chunks_count": {
+              "type": "integer",
+              "description": "Количество созданных чанков"
+            },
+            "total_tokens": {
+              "type": "integer",
+              "description": "Общее количество токенов во всех чанках"
+            }
+          }
+        }
+      }
+    },
+    "search_chunks": {
+      "description": "Семантический поиск чанков с гибридным поиском (dense + sparse + RRF)",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "optional": false,
+              "description": "Поисковый запрос (текст для семантического поиска)"
+            },
+            "collection": {
+              "type": "string | array",
+              "optional": true,
+              "description": "Имя коллекции или массив имён для поиска. Если не указано — сквозной поиск по всем коллекциям (результаты объединяются и пересортируются по score)."
+            },
+            "top_k": {
+              "type": "integer",
+              "optional": true,
+              "min": 1,
+              "max": 100,
+              "description": "Максимальное количество результатов (по умолчанию из настроек: 10)"
+            },
+            "score_threshold": {
+              "type": "number",
+              "optional": true,
+              "min": 0.0,
+              "max": 1.0,
+              "description": "Минимальный порог релевантности для фильтрации (по умолчанию из настроек: 0.7)"
+            },
+            "filters": {
+              "type": "object",
+              "optional": true,
+              "description": "Фильтры по метаданным (например: {\"chat_id\": \"main\", \"type\": \"message\"})"
+            },
+            "max_chars": {
+              "type": "integer",
+              "optional": true,
+              "description": "Ограничение суммарного объёма текста чанков в символах. Чанки берутся по убыванию релевантности до достижения лимита. Позволяет запросить большой top_k и гибко резать по объёму, а не только по количеству."
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success или error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "search_chunks": {
+              "type": "array",
+              "replaceable": true,
+              "description": "Список найденных чанков (отсортированы по релевантности)",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "chunk_id": {
+                    "type": "string",
+                    "description": "ID чанка (document_id + индекс)"
+                  },
+                  "document_id": {
+                    "type": "string",
+                    "description": "ID документа"
+                  },
+                  "chunk_index": {
+                    "type": "integer",
+                    "description": "Индекс чанка в документе (начиная с 0)"
+                  },
+                  "text": {
+                    "type": "string",
+                    "description": "Текст чанка"
+                  },
+                  "score": {
+                    "type": "number",
+                    "description": "Релевантность (0-1, выше = лучше, гибридный score после RRF)"
+                  },
+                  "metadata": {
+                    "type": "object",
+                    "description": "Метаданные чанка"
+                  },
+                  "collection": {
+                    "type": "string",
+                    "description": "Имя коллекции (присутствует при сквозном поиске по всем коллекциям)"
+                  }
+                }
+              }
+            },
+            "chunks_count": {
+              "type": "integer",
+              "description": "Количество найденных чанков"
+            }
+          }
+        }
+      }
+    },
+    "delete_chunks": {
+      "description": "Удаление чанков по document_id или по фильтрам метаданных",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "collection": {
+              "type": "string | array",
+              "optional": true,
+              "description": "Имя коллекции или массив имён. Если не указано — используется коллекция по умолчанию из настроек. Массив — удаление выполняется в каждой из перечисленных коллекций."
+            },
+            "document_ids": {
+              "type": "array",
+              "optional": true,
+              "description": "Список ID документов для удаления (удаляет все чанки этих документов)",
+              "items": {
+                "type": "string"
+              }
+            },
+            "filters": {
+              "type": "object",
+              "optional": true,
+              "description": "Фильтры по метаданным для удаления (например: {\"chat_id\": \"old_chat\"})"
+            }
+          }
+        }
+      },
+      "output": {
+        "result": {
+          "type": "string",
+          "description": "success или error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "type": "string",
+              "description": "Код ошибки"
+            },
+            "message": {
+              "type": "string",
+              "description": "Сообщение об ошибке"
+            }
+          }
+        },
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "deleted_count": {
+              "type": "integer",
+              "replaceable": true,
+              "description": "Количество удалённых документов/чанков"
+            }
+          }
+        }
+      }
+    },
+    "list_chunks": {
+      "description": "Список чанков в коллекции (постранично) для просмотра и управления",
+      "input": {
+        "payload": {
+          "type": "object",
+          "properties": {
+            "collection": {"type": "string | array", "optional": true, "description": "Имя коллекции или массив имён. Если не указано — возвращаются чанки из всех коллекций (каждая точка содержит поле collection). Пагинация работает только при указании одной коллекции."},
+            "limit": {"type": "integer", "optional": true, "default": 100, "description": "Максимум записей на странице (для мультиколлекционного режима — на каждую коллекцию)"},
+            "offset": {"type": "string", "optional": true, "description": "Курсор следующей страницы (из предыдущего ответа)"}
+          }
+        }
+      },
+      "output": {
+        "result": {"type": "string", "description": "success или error"},
+        "error": {"type": "object", "properties": {"code": {"type": "string"}, "message": {"type": "string"}}},
+        "response_data": {
+          "type": "object",
+          "properties": {
+            "info": {"type": "object", "description": "Информация о коллекции (points_count и др.)"},
+            "points": {"type": "array", "description": "Список точек (point_id, payload с text, original_id, document_id)"},
+            "next_offset": {"type": "string", "description": "Курсор для следующей страницы или null"}
+          }
+        }
+      }
+    }
+  },
+  "contributes": {
+    "workspace": {
+      "id": "vector_store_admin",
+      "label": "Векторная база",
+      "title": "Векторная база",
+      "content": {"widget": "vectorStoreAdmin"}
+    },
+    "settings": {
+      "label": "Векторное хранилище",
+      "order": 30,
+      "fields": [
+        {"key": "collection_name", "label": "Имя коллекции Qdrant"},
+        {"key": "embedding_batch_size", "label": "Размер батча эмбеддингов"},
+        {"key": "onnx_num_threads", "label": "Потоков ONNX Runtime"},
+        {"key": "max_chunks_per_batch", "label": "Макс. чанков за вызов при индексации"},
+        {"key": "default_top_k", "label": "Результатов поиска по умолчанию"},
+        {"key": "score_threshold", "label": "Порог релевантности (0–1)"}
+      ]
+    }
+  }
+}

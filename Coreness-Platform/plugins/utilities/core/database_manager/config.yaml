@@ -1,0 +1,189 @@
+name: "database_manager"
+description: "Централизованный доступ к базе данных и связанным репозиториям."
+description_en: "Centralized database access and related repositories."
+singleton: true
+
+dependencies:
+  - "logger"
+  - "settings_manager"
+  - "datetime_formatter"
+  - "data_converter"
+    
+settings:
+  database_preset:
+    type: string
+    default: "sqlite"
+    description: "Пресет базы данных: 'sqlite' или 'postgresql'"
+    description_en: "Database preset: 'sqlite' or 'postgresql'"
+  
+  database:
+    type: object
+
+    sqlite:
+      database_url: "sqlite:///data/core.db"
+      # Connection pool settings for SQLite (optimized for 1GB RAM)
+      connection_pool:
+        pool_size: 35                # Balanced pool
+        max_overflow: 15             # Moderate overflow
+        pool_pre_ping: true
+        pool_recycle: 300
+        connect_timeout: 1
+      # SQLite PRAGMA optimizations (optimized for operational database)
+      # Balanced memory settings: ~200MB (cache + mmap) for optimal speed/memory ratio
+      pragma_settings:
+        journal_mode: "WAL"           # Write-Ahead Logging for better concurrency (read/write)
+        cache_size: 25000             # 100MB cache (balance between performance and memory)
+        synchronous: "NORMAL"         # Balance between performance and reliability (FULL is more reliable but slower)
+        temp_store: "MEMORY"          # Temporary tables in memory (faster than disk)
+        busy_timeout: 30000           # Lock wait timeout (30 seconds)
+        foreign_keys: true            # Foreign keys enabled (integrity check)
+        mmap_size: 104857600          # 100MB memory-mapped I/O (balance between speed and memory)
+      # SQLite engine settings
+      engine_settings:
+        echo: false
+        future: true
+        isolation_level: null  # null = autocommit, "AUTOCOMMIT" = explicit autocommit
+        pool_pre_ping: true
+        pool_reset_on_return: "commit"
+      
+      description: "Конфигурация SQLite с ограничениями пула и оптимизациями"
+      description_en: "SQLite configuration with pool limits and optimizations"
+
+    postgresql:
+      # Connection components
+      # host: service name in docker-compose (postgres for prod, postgres-test for test)
+      # Overridden in config/settings.yaml for each environment
+      host: "postgres"
+      port: 5432  # Standard PostgreSQL port (overridden via environment variables for test/prod)
+      username: "postgres"
+      password: ""  # Empty password for trust authentication within Docker network
+      database: "core_db"
+      
+      # Connection retry settings
+      connection_retry:
+        max_retries: 3  # Maximum number of connection attempts
+        retry_interval: 1  # Interval between attempts (in seconds)
+      
+      # SQLAlchemy logging disabled
+      echo: false
+      echo_pool: false
+      
+      # PostgreSQL settings are configured via postgresql.conf files in docker/
+      # (postgresql.test.conf for test, postgresql.prod.conf for prod)
+      
+      # Connection pool settings
+      connection_pool:
+        pool_size: 50
+        max_overflow: 20
+        pool_pre_ping: true
+        pool_recycle: 600
+        connect_timeout: 2  # 2 seconds connection timeout
+      
+      # PostgreSQL engine settings
+      engine_settings:
+        echo: false
+        echo_pool: false
+        future: true
+        connect_args:
+          options: "-c client_encoding=utf8"
+        session_settings:
+          autoflush: false
+          autocommit: false
+          future: true
+    description: "Доступные пресеты баз данных: sqlite и postgresql"
+    description_en: "Available database presets: sqlite and postgresql"
+
+methods:
+  get_repository:
+    description: "Получить репозиторий для работы с базой данных"
+    description_en: "Get repository for database access"
+    input:
+      repo_name:
+        type: string
+        description: "Название репозитория (cache, actions)"
+        description_en: "Repository name (cache, actions)"
+    output:
+      type: object
+      description: "Объект репозитория для работы с БД"
+      description_en: "Repository instance for DB access"
+
+  create_all:
+    description: "Создаёт все таблицы в БД согласно моделям"
+    description_en: "Create all tables in DB according to models"
+    input: {}
+    output:
+      type: void
+      description: "Нет возвращаемого значения"
+      description_en: "No return value"
+
+  get_database_config:
+    description: "Возвращает полную конфигурацию текущей базы данных"
+    description_en: "Return full configuration of current database"
+    input: {}
+    output:
+      type: dict
+      description: "Словарь с полной конфигурацией БД (включает type, url и параметры подключения в зависимости от типа БД: host, port, username, password, database для PostgreSQL или db_path для SQLite)"
+      description_en: "Dict with full DB config (type, url, connection params)"
+      
+  get_available_databases:
+    description: "Возвращает список доступных баз данных"
+    description_en: "Return list of available databases"
+    input: {}
+    output:
+      type: list
+      description: "Список доступных пресетов баз данных"
+      description_en: "List of available database presets"
+
+  drop_all_views:
+    description: "Удаляет все системные view для PostgreSQL (для SQLite игнорируется). Используется перед миграцией."
+    description_en: "Drop all system views for PostgreSQL (ignored for SQLite). Used before migration."
+    input: {}
+    output:
+      type: boolean
+      description: "Результат операции удаления view"
+      description_en: "Result of drop views operation"
+
+  create_all_views:
+    description: "Создаёт все view для PostgreSQL (для SQLite игнорируется)"
+    description_en: "Create all views for PostgreSQL (ignored for SQLite)"
+    input: {}
+    output:
+      type: boolean
+      description: "Результат операции создания view"
+      description_en: "Result of create views operation"
+
+  create_backup:
+    description: "Создает бэкап базы данных в формате plain SQL + gzip для PostgreSQL или .bak.gz для SQLite. Использует глобальную переменную backup_dir из настроек"
+    description_en: "Create DB backup (plain SQL + gzip for PostgreSQL, .bak.gz for SQLite). Uses backup_dir from settings"
+    input:
+      backup_filename:
+        type: string
+        optional: true
+        description: "Опциональное имя файла бэкапа (без расширения). Если не указано, генерируется автоматически с timestamp"
+        description_en: "Optional backup filename (no extension). If not set, generated with timestamp"
+    output:
+      type: string
+      description: "Путь к созданному файлу бэкапа или None в случае ошибки"
+      description_en: "Path to created backup file or None on error"
+
+  restore_backup:
+    description: "Восстанавливает базу данных из бэкапа. Использует глобальную переменную backup_dir из настроек"
+    description_en: "Restore database from backup. Uses backup_dir from settings"
+    input:
+      backup_filename:
+        type: string
+        optional: true
+        description: "Опциональное имя файла бэкапа для восстановления. Если не указано, восстанавливается из последнего бэкапа"
+        description_en: "Optional backup filename to restore. If not set, restores from latest backup"
+    output:
+      type: boolean
+      description: "True если восстановление успешно, False в случае ошибки"
+      description_en: "True if restore succeeded, False on error"
+
+features:
+  - "Одна точка входа для работы с БД во всех слоях проекта"
+  - "Легко расширяется новыми репозиториями"
+  - "Контекстный менеджер для автоматического закрытия сессий"
+  - "Поддержка SQLite и PostgreSQL"
+  - "Автоматическое создание директории для базы данных"
+  - "Оптимизированные настройки пула соединений для PostgreSQL" 

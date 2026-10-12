@@ -1,0 +1,101 @@
+/**
+ * Общие настройки: липкий заголовок, секции плагинов. Скролл не уводит заголовок и кнопки.
+ */
+
+.settings-view-unified {
+  display: flex;
+  flex-direction: column;
+  min-height: min-content;
+  width: 100%;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.settings-view-unified__header {
+  /* Стили липкого заголовка — в .workspace-sticky-header (workspace.css). */
+}
+
+.settings-view-unified__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.settings-view-unified__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.settings-view-unified__saved {
+  display: inline-flex;
+  align-items: center;
+  color: var(--color-text-disabled);
+  animation: settings-view-saved 1.5s ease-out forwards;
+}
+
+@keyframes settings-view-saved {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  75% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+.settings-view-unified__close {
+  padding: var(--space-xs) var(--space-sm);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-card);
+  color: var(--color-text);
+  cursor: default;
+  font-size: 0.875rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.settings-view-unified__close:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-focus, var(--color-border));
+  color: var(--color-text);
+}
+
+.settings-view-unified__body {
+  flex: 0 0 auto;
+  width: 100%;
+  padding: var(--workspace-sticky-body-padding);
+}
+
+.settings-view-unified__empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+}
+
+.settings-view-unified__section {
+  margin-bottom: var(--space-xl);
+  padding-left: var(--workspace-sticky-content-inline);
+  padding-right: var(--workspace-sticky-content-inline);
+}
+
+.settings-view-unified__section:last-child {
+  margin-bottom: 0;
+}
+
+.settings-view-unified__section-title {
+  margin: 0 0 var(--space-md);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-text);
+}

@@ -1,0 +1,15 @@
+# Storage configuration for tenant_1 (Master tenant)
+
+users:
+  123456789:
+    tenant_owner: []
+    admin: true
+    access: true
+  
+  234567890:
+    tenant_owner: [100]
+    access: true
+  
+  9876543210:
+    tenant_owner: [200]
+    access: true
